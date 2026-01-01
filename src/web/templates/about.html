@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}About - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="mb-4">
+            <i class="bi bi-info-circle"></i> JRA競馬予想アプリについて
+        </h1>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h4 mb-3">概要</h2>
+                <p>
+                    このアプリケーションは、JRAの競馬データを収集し、機械学習モデルを使用して
+                    レース結果を予想するWebアプリケーションです。
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h4 mb-3">技術スタック</h2>
+                <ul>
+                    <li><strong>バックエンド:</strong> Python, Flask</li>
+                    <li><strong>データベース:</strong> PostgreSQL / SQLite</li>
+                    <li><strong>機械学習:</strong> scikit-learn, XGBoost</li>
+                    <li><strong>データ処理:</strong> pandas, numpy</li>
+                    <li><strong>Webスクレイピング:</strong> BeautifulSoup4</li>
+                    <li><strong>フロントエンド:</strong> Bootstrap 5</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h4 mb-3">主な機能</h2>
+                <ul>
+                    <li>JRAウェブサイトからのレースデータ自動収集</li>
+                    <li>過去のデータに基づく機械学習モデルの訓練</li>
+                    <li>レース結果の予想と信頼度スコア表示</li>
+                    <li>馬・騎手・調教師の詳細情報</li>
+                    <li>予想精度の統計分析</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="alert alert-warning">
+            <h5 class="alert-heading">
+                <i class="bi bi-exclamation-triangle"></i> 免責事項
+            </h5>
+            <p class="mb-0">
+                このアプリケーションの予想は参考情報です。予想の正確性を保証するものではありません。
+                実際の馬券購入は自己責任で行ってください。また、ギャンブル依存症にご注意ください。
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h4 mb-3">データソース</h2>
+                <p>
+                    すべてのレースデータはJRA（日本中央競馬会）のウェブサイトから取得しています。
+                    データの正確性については、JRA公式サイトをご確認ください。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

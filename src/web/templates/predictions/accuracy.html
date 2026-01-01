@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}予想精度 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-bar-chart"></i> 予想精度
+        </h1>
+        <p class="lead">機械学習モデルの予想パフォーマンス</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">総予想回数</h5>
+                <p class="display-4">{{ stats.total_predictions if stats.total_predictions else 0 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">予想対象レース</h5>
+                <p class="display-4">{{ stats.total_races if stats.total_races else 0 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">的中率</h5>
+                <p class="display-4 text-success">
+                    {% if stats.accuracy %}
+                        {{ '{:.1%}'.format(stats.accuracy) }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-graph-up"></i> 詳細統計
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    詳細な統計情報は今後実装予定です。予想結果とレース結果を比較して、より詳しい精度分析を提供します。
+                </p>
+                <ul>
+                    <li>単勝的中率</li>
+                    <li>複勝的中率</li>
+                    <li>回収率（ROI）</li>
+                    <li>モデル別パフォーマンス</li>
+                    <li>期間別精度推移</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

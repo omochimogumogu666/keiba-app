@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}ホーム - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-trophy text-warning"></i> JRA競馬予想アプリ
+        </h1>
+        <p class="lead">機械学習による競馬予想をお届けします</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Upcoming Races -->
+    <div class="col-lg-8">
+        <h2 class="h4 mb-3">
+            <i class="bi bi-calendar-event"></i> 今週のレース
+        </h2>
+
+        {% if upcoming_races %}
+            <div class="list-group">
+                {% for race in upcoming_races %}
+                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                {{ race.track.name if race.track else '競馬場' }}
+                                {{ race.race_number }}R
+                                {% if race.race_name %}
+                                    - {{ race.race_name }}
+                                {% endif %}
+                            </h5>
+                            <small class="text-muted">
+                                {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
+                            </small>
+                        </div>
+                        <p class="mb-1">
+                            <span class="badge bg-secondary">{{ race.surface }}</span>
+                            <span class="badge bg-info">{{ race.distance }}m</span>
+                            {% if race.race_class %}
+                                <span class="badge bg-warning text-dark">{{ race.race_class }}</span>
+                            {% endif %}
+                        </p>
+                    </a>
+                {% endfor %}
+            </div>
+
+            <div class="mt-3">
+                <a href="{{ url_for('main.race_list') }}" class="btn btn-primary">
+                    <i class="bi bi-list-ul"></i> すべてのレースを見る
+                </a>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 現在、今週のレース情報はありません。
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Stats -->
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-graph-up"></i> 統計情報
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <strong>今週のレース:</strong> {{ upcoming_races|length if upcoming_races else 0 }}
+                </p>
+                <p class="mb-0">
+                    <strong>直近の結果:</strong> {{ recent_races|length if recent_races else 0 }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Recent Results -->
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-check-circle"></i> 最近の結果
+            </div>
+            <div class="card-body">
+                {% if recent_races %}
+                    <ul class="list-unstyled mb-0">
+                        {% for race in recent_races %}
+                            <li class="mb-2">
+                                <a href="{{ url_for('main.race_detail', race_id=race.id) }}" class="text-decoration-none">
+                                    <small class="text-muted">{{ race.race_date.strftime('%m/%d') if race.race_date else 'TBD' }}</small><br>
+                                    {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">
+                        <small>最近の結果はありません</small>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="h4 mb-3">アプリの特徴</h2>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-cpu display-4 text-primary"></i>
+                <h5 class="card-title mt-3">機械学習予想</h5>
+                <p class="card-text">過去のデータから学習した高精度な予想モデル</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-clock-history display-4 text-success"></i>
+                <h5 class="card-title mt-3">リアルタイム更新</h5>
+                <p class="card-text">最新のレース情報と予想を自動更新</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-bar-chart display-4 text-warning"></i>
+                <h5 class="card-title mt-3">詳細な分析</h5>
+                <p class="card-text">馬・騎手・調教師の詳細なデータ分析</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

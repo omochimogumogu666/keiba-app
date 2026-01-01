@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}{{ race.race_name }} 予想 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">ホーム</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('predictions.predictions_index') }}">予想一覧</a></li>
+                <li class="breadcrumb-item active">{{ race.race_name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R 予想
+            {% if race.race_name %}
+                - {{ race.race_name }}
+            {% endif %}
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-trophy"></i> 予想結果
+            </div>
+            <div class="card-body">
+                {% if predictions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>予想順位</th>
+                                    <th>馬名</th>
+                                    <th>騎手</th>
+                                    <th>勝率</th>
+                                    <th>信頼度</th>
+                                    <th>モデル</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pred_data in predictions %}
+                                    <tr>
+                                        <td>
+                                            <strong class="fs-5">{{ pred_data.prediction.predicted_position }}</strong>
+                                        </td>
+                                        <td>
+                                            <strong>{{ pred_data.horse.name if pred_data.horse else 'Unknown' }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ pred_data.jockey.name if pred_data.jockey else '-' }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if pred_data.prediction.win_probability > 0.3 else 'warning' if pred_data.prediction.win_probability > 0.15 else 'secondary' }}">
+                                                {{ '{:.1%}'.format(pred_data.prediction.win_probability) if pred_data.prediction.win_probability else '-' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="width: 100px;">
+                                                <div class="progress-bar" role="progressbar"
+                                                     style="width: {{ (pred_data.prediction.confidence_score * 100) if pred_data.prediction.confidence_score else 0 }}%">
+                                                    {{ '{:.0%}'.format(pred_data.prediction.confidence_score) if pred_data.prediction.confidence_score else '-' }}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ pred_data.prediction.model_name if pred_data.prediction.model_name else '-' }}</small>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">予想データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-info-circle"></i> レース情報
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>開催日:</strong> {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}</p>
+                <p class="mb-2"><strong>距離:</strong> {{ race.distance }}m</p>
+                <p class="mb-2"><strong>コース:</strong> {{ race.surface }}</p>
+                {% if race.race_class %}
+                    <p class="mb-0"><strong>クラス:</strong> <span class="badge bg-warning text-dark">{{ race.race_class }}</span></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-lightning"></i> アクション
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('main.race_detail', race_id=race.id) }}" class="btn btn-outline-primary btn-block w-100 mb-2">
+                    <i class="bi bi-eye"></i> レース詳細
+                </a>
+                <a href="{{ url_for('predictions.predictions_index') }}" class="btn btn-outline-secondary btn-block w-100">
+                    <i class="bi bi-arrow-left"></i> 予想一覧に戻る
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
