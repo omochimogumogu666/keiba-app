@@ -8,6 +8,7 @@ from datetime import datetime
 from src.data.models import (
     db, Horse, Jockey, Trainer, Race, Track, RaceEntry, RaceResult, Prediction
 )
+from src.web.cache import cache
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -47,6 +48,7 @@ def error_response(message, status_code=400):
 
 # Race endpoints
 @api_bp.route('/races', methods=['GET'])
+@cache.cached(timeout=300, query_string=True)  # Cache for 5 minutes
 def get_races():
     """
     Get list of races with optional filtering.

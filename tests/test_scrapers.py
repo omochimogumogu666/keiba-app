@@ -192,14 +192,20 @@ class TestJRAScraper:
         # Currently returns empty list as placeholder
 
     def test_scrape_race_card_returns_none(self, scraper):
-        """Test that scrape_race_card returns None (placeholder)."""
+        """Test that scrape_race_card returns empty structure for invalid race ID."""
         result = scraper.scrape_race_card('202401010101')
-        assert result is None  # Placeholder implementation
+        # Without CNAME, scraper returns empty race card structure, not None
+        assert result is not None
+        assert 'entries' in result
+        assert len(result['entries']) == 0  # No entries for invalid race
 
     def test_scrape_race_result_returns_none(self, scraper):
-        """Test that scrape_race_result returns None (placeholder)."""
+        """Test that scrape_race_result returns empty structure for invalid race ID."""
         result = scraper.scrape_race_result('202401010101')
-        assert result is None  # Placeholder implementation
+        # Without CNAME, scraper returns empty result structure, not None
+        assert result is not None
+        assert 'results' in result
+        assert len(result['results']) == 0  # No results for invalid race
 
     def test_get_upcoming_races(self, scraper):
         """Test getting upcoming races."""

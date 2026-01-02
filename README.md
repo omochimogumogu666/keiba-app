@@ -5,19 +5,21 @@ JRAの競馬データをスクレイピングし、機械学習モデルで予�
 ## 概要
 
 このアプリケーションは以下の機能を提供します:
-- JRAウェブサイトからのレースデータの自動収集
-- 機械学習モデルによる勝馬予想
-- Webインターフェースでの予想結果表示
-- REST APIによるデータアクセス
+- ✅ JRAウェブサイトからのレースデータの自動収集（レースカレンダー、出馬表、レース結果、馬プロフィール）
+- ✅ 機械学習モデルによる勝馬予想（RandomForest、XGBoost）
+- ✅ Webインターフェースでの予想結果表示
+- ✅ RESTful APIによるデータアクセス
+- ✅ パフォーマンス最適化とキャッシング機能
 
 ## 技術スタック
 
-- **バックエンド**: Python 3.9+, Flask
-- **機械学習**: scikit-learn, XGBoost
+- **バックエンド**: Python 3.9+, Flask, Flask-SQLAlchemy
+- **機械学習**: scikit-learn, XGBoost, imbalanced-learn
 - **データ処理**: pandas, numpy
-- **スクレイピング**: BeautifulSoup4, Requests
+- **スクレイピング**: BeautifulSoup4, Requests, cloudscraper
 - **データベース**: PostgreSQL (本番), SQLite (開発)
 - **フロントエンド**: Jinja2, Bootstrap 5
+- **キャッシング**: Flask-Caching (SimpleCache/Redis)
 
 ## セットアップ
 

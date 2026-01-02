@@ -51,6 +51,11 @@ class Config:
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = BASE_DIR / os.getenv('LOG_FILE', 'logs/app.log')
 
+    # Caching
+    CACHE_TYPE = os.getenv('CACHE_TYPE', 'SimpleCache')
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 300))  # 5 minutes
+    CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL', 'redis://localhost:6379/0')
+
     # Scheduler
     ENABLE_SCHEDULER = os.getenv('ENABLE_SCHEDULER', 'false').lower() == 'true'
     SCRAPE_SCHEDULE_HOUR = int(os.getenv('SCRAPE_SCHEDULE_HOUR', '1'))

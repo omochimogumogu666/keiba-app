@@ -2,7 +2,8 @@
 Prediction routes for the web application.
 """
 from flask import Blueprint, render_template, jsonify
-from src.data.models import db, Race, Prediction, RaceEntry
+from sqlalchemy.orm import joinedload
+from src.data.models import db, Race, Prediction, RaceEntry, RaceResult
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -28,7 +29,10 @@ def race_predictions(race_id):
     race = Race.query.get_or_404(race_id)
 
     # Get predictions for this race, ordered by predicted position
-    predictions = Prediction.query.filter_by(race_id=race_id).order_by(
+    # Eagerly load horse relationship to avoid lazy loading issues
+    predictions = Prediction.query.options(
+        joinedload(Prediction.horse)
+    ).filter_by(race_id=race_id).order_by(
         Prediction.predicted_position
     ).all()
 
@@ -59,7 +63,10 @@ def api_race_predictions(race_id):
     """API endpoint for race predictions."""
     race = Race.query.get_or_404(race_id)
 
-    predictions = Prediction.query.filter_by(race_id=race_id).order_by(
+    # Eagerly load horse relationship
+    predictions = Prediction.query.options(
+        joinedload(Prediction.horse)
+    ).filter_by(race_id=race_id).order_by(
         Prediction.predicted_position
     ).all()
 
@@ -95,12 +102,16 @@ def prediction_accuracy():
 
     # Calculate accuracy - compare predictions with actual results
     # Find predictions where we have actual results
+    # Join through RaceEntry to connect Prediction and RaceResult
     predictions_with_results = db.session.query(
         Prediction, RaceResult
     ).join(
+        RaceEntry,
+        (Prediction.race_id == RaceEntry.race_id) &
+        (Prediction.horse_id == RaceEntry.horse_id)
+    ).join(
         RaceResult,
-        (Prediction.race_id == RaceResult.race_id) &
-        (Prediction.horse_id == RaceResult.horse_id)
+        RaceResult.race_entry_id == RaceEntry.id
     ).all()
 
     # Win accuracy (predicted position 1 == actual position 1)

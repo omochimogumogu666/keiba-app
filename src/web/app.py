@@ -5,6 +5,7 @@ from flask import Flask, render_template
 from config.settings import get_config
 from config.logging_config import setup_logging
 from src.data.models import db
+from src.web.cache import init_cache
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -35,6 +36,9 @@ def create_app(config_name=None):
 
     # Initialize database
     db.init_app(app)
+
+    # Initialize cache
+    init_cache(app)
 
     # Register blueprints
     register_blueprints(app)
