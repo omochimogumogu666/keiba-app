@@ -57,6 +57,60 @@
             </div>
         </div>
 
+        <!-- Race Results (if completed) -->
+        {% if race.status == 'completed' and race.race_results %}
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-trophy-fill"></i> レース結果
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>着順</th>
+                                    <th>枠</th>
+                                    <th>馬番</th>
+                                    <th>馬名</th>
+                                    <th>騎手</th>
+                                    <th>タイム</th>
+                                    <th>着差</th>
+                                    <th>人気</th>
+                                    <th>単勝オッズ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in race.race_results|sort(attribute='finish_position') %}
+                                    <tr class="{{ 'table-warning' if result.finish_position == 1 else 'table-info' if result.finish_position <= 3 else '' }}">
+                                        <td>
+                                            <strong class="fs-5">{{ result.finish_position }}</strong>
+                                            {% if result.finish_position == 1 %}
+                                                <i class="bi bi-trophy-fill text-warning"></i>
+                                            {% elif result.finish_position == 2 %}
+                                                <i class="bi bi-award-fill text-secondary"></i>
+                                            {% elif result.finish_position == 3 %}
+                                                <i class="bi bi-award text-bronze"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ result.race_entry.post_position if result.race_entry and result.race_entry.post_position else '-' }}</td>
+                                        <td>{{ result.race_entry.horse_number if result.race_entry else '-' }}</td>
+                                        <td>
+                                            <strong>{{ result.race_entry.horse.name if result.race_entry and result.race_entry.horse else 'Unknown' }}</strong>
+                                        </td>
+                                        <td>{{ result.race_entry.jockey.name if result.race_entry and result.race_entry.jockey else '-' }}</td>
+                                        <td>{{ result.finish_time if result.finish_time else '-' }}</td>
+                                        <td>{{ result.margin if result.margin else '-' }}</td>
+                                        <td>{{ result.popularity if result.popularity else '-' }}</td>
+                                        <td>{{ result.win_odds if result.win_odds else '-' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
         <div class="card">
             <div class="card-header bg-success text-white">
                 <i class="bi bi-list-ol"></i> 出走馬
@@ -71,6 +125,7 @@
                                     <th>馬番</th>
                                     <th>馬名</th>
                                     <th>騎手</th>
+                                    <th>調教師</th>
                                     <th>斤量</th>
                                     <th>馬体重</th>
                                     {% if race.status == 'upcoming' %}
@@ -79,14 +134,18 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for entry in entries %}
+                                {% for entry in entries|sort(attribute='horse_number') %}
                                     <tr>
                                         <td>{{ entry.post_position if entry.post_position else '-' }}</td>
                                         <td>{{ entry.horse_number if entry.horse_number else '-' }}</td>
                                         <td>
                                             <strong>{{ entry.horse.name if entry.horse else 'Unknown' }}</strong>
+                                            {% if entry.horse and entry.horse.sex %}
+                                                <small class="text-muted">({{ entry.horse.sex }}{{ entry.horse.age if entry.horse.age else '' }})</small>
+                                            {% endif %}
                                         </td>
                                         <td>{{ entry.jockey.name if entry.jockey else '-' }}</td>
+                                        <td><small>{{ entry.trainer.name if entry.trainer else '-' }}</small></td>
                                         <td>{{ entry.weight if entry.weight else '-' }}kg</td>
                                         <td>
                                             {% if entry.horse_weight %}

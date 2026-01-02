@@ -26,6 +26,12 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                <form class="d-flex me-3" method="get" action="{{ url_for('search.search') }}">
+                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="検索..." aria-label="Search">
+                    <button class="btn btn-outline-light btn-sm" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
@@ -41,6 +47,22 @@
                         <a class="nav-link" href="{{ url_for('predictions.predictions_index') }}">
                             <i class="bi bi-graph-up"></i> 予想
                         </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-database"></i> データ
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('entities.horse_list') }}">
+                                <i class="bi bi-award"></i> 馬一覧
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('entities.jockey_list') }}">
+                                <i class="bi bi-person-badge"></i> 騎手一覧
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('entities.trainer_list') }}">
+                                <i class="bi bi-person-workspace"></i> 調教師一覧
+                            </a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.about') }}">

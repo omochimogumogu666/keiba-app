@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}騎手一覧 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-person-badge"></i> 騎手一覧
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if jockeys.items %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>騎手名</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for jockey in jockeys.items %}
+                            <tr>
+                                <td><strong>{{ jockey.name }}</strong></td>
+                                <td>
+                                    <a href="{{ url_for('entities.jockey_detail', jockey_id=jockey.id) }}"
+                                       class="btn btn-sm btn-primary">
+                                        詳細
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if jockeys.pages > 1 %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if jockeys.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('entities.jockey_list', page=jockeys.prev_num) }}">前へ</a>
+                            </li>
+                        {% endif %}
+
+                        {% for page_num in jockeys.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                            {% if page_num %}
+                                <li class="page-item {{ 'active' if page_num == jockeys.page else '' }}">
+                                    <a class="page-link" href="{{ url_for('entities.jockey_list', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if jockeys.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('entities.jockey_list', page=jockeys.next_num) }}">次へ</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 騎手のデータがありません。
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

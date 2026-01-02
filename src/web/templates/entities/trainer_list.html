@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}調教師一覧 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-person-workspace"></i> 調教師一覧
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if trainers.items %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>調教師名</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trainer in trainers.items %}
+                            <tr>
+                                <td><strong>{{ trainer.name }}</strong></td>
+                                <td>
+                                    <a href="{{ url_for('entities.trainer_detail', trainer_id=trainer.id) }}"
+                                       class="btn btn-sm btn-primary">
+                                        詳細
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if trainers.pages > 1 %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if trainers.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('entities.trainer_list', page=trainers.prev_num) }}">前へ</a>
+                            </li>
+                        {% endif %}
+
+                        {% for page_num in trainers.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                            {% if page_num %}
+                                <li class="page-item {{ 'active' if page_num == trainers.page else '' }}">
+                                    <a class="page-link" href="{{ url_for('entities.trainer_list', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if trainers.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('entities.trainer_list', page=trainers.next_num) }}">次へ</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 調教師のデータがありません。
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

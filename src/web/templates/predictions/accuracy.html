@@ -13,7 +13,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-4 mb-4">
+    <div class="col-md-3 mb-4">
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title text-muted">総予想回数</h5>
@@ -21,7 +21,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4 mb-4">
+    <div class="col-md-3 mb-4">
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title text-muted">予想対象レース</h5>
@@ -29,13 +29,28 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4 mb-4">
+    <div class="col-md-3 mb-4">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title text-muted">的中率</h5>
+                <h5 class="card-title text-muted">単勝的中率</h5>
                 <p class="display-4 text-success">
-                    {% if stats.accuracy %}
-                        {{ '{:.1%}'.format(stats.accuracy) }}
+                    {% if stats.win_accuracy is defined and stats.top_pick_total > 0 %}
+                        {{ '{:.1%}'.format(stats.win_accuracy) }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </p>
+                <small class="text-muted">{{ stats.top_pick_wins }}/{{ stats.top_pick_total }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-muted">複勝的中率</h5>
+                <p class="display-4 text-info">
+                    {% if stats.place_accuracy is defined %}
+                        {{ '{:.1%}'.format(stats.place_accuracy) }}
                     {% else %}
                         -
                     {% endif %}
@@ -46,21 +61,68 @@
 </div>
 
 <div class="row">
-    <div class="col-12">
+    <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <i class="bi bi-graph-up"></i> 詳細統計
+                <i class="bi bi-cpu"></i> モデル別統計
             </div>
             <div class="card-body">
-                <p class="text-muted">
-                    詳細な統計情報は今後実装予定です。予想結果とレース結果を比較して、より詳しい精度分析を提供します。
+                {% if stats.model_stats %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>モデル名</th>
+                                <th>予想数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for model_name, count in stats.model_stats %}
+                                <tr>
+                                    <td>{{ model_name if model_name else '未設定' }}</td>
+                                    <td>{{ count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted mb-0">モデル統計データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-info-circle"></i> 統計情報
+            </div>
+            <div class="card-body">
+                <p><strong>検証済み予想:</strong> {{ stats.predictions_with_results if stats.predictions_with_results else 0 }}件</p>
+                <p class="mb-0"><small class="text-muted">
+                    実際のレース結果と比較可能な予想データの数です。
+                    より多くのレース結果が蓄積されると、精度統計がより正確になります。
+                </small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-graph-up"></i> 今後の改善予定
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">
+                    以下の機能を今後実装予定です:
                 </p>
                 <ul>
-                    <li>単勝的中率</li>
-                    <li>複勝的中率</li>
-                    <li>回収率（ROI）</li>
-                    <li>モデル別パフォーマンス</li>
-                    <li>期間別精度推移</li>
+                    <li>回収率（ROI）の計算と表示</li>
+                    <li>期間別精度推移グラフ</li>
+                    <li>競馬場別・距離別の精度分析</li>
+                    <li>モデル別詳細パフォーマンス比較</li>
+                    <li>信頼度スコア別の的中率分析</li>
                 </ul>
             </div>
         </div>

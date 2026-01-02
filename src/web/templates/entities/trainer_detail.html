@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}{{ trainer.name }} - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">ホーム</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('entities.trainer_list') }}">調教師一覧</a></li>
+                <li class="breadcrumb-item active">{{ trainer.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-person-workspace"></i> {{ trainer.name }}
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-info-circle"></i> 基本情報
+            </div>
+            <div class="card-body">
+                {% if trainer.jra_trainer_id %}
+                    <p class="mb-0"><strong>JRA ID:</strong> <small>{{ trainer.jra_trainer_id }}</small></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-list-ul"></i> 最近の管理馬
+            </div>
+            <div class="card-body">
+                {% if entries %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>競馬場</th>
+                                    <th>レース</th>
+                                    <th>馬名</th>
+                                    <th>騎手</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                    <tr>
+                                        <td><small>{{ entry.race.race_date.strftime('%Y/%m/%d') if entry.race.race_date else 'TBD' }}</small></td>
+                                        <td>{{ entry.race.track.name if entry.race.track else '-' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('main.race_detail', race_id=entry.race.id) }}">
+                                                {{ entry.race.race_number }}R
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('entities.horse_detail', horse_id=entry.horse.id) }}">
+                                                {{ entry.horse.name if entry.horse else '-' }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <small>{{ entry.jockey.name if entry.jockey else '-' }}</small>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">管理馬データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-graph-up"></i> 通算成績
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>出走数:</strong> {{ stats.total_results }}</p>
+                <p class="mb-2">
+                    <strong>勝利:</strong> {{ stats.wins }}
+                    <span class="badge bg-success">{{ '{:.1%}'.format(stats.win_rate) if stats.win_rate else '0.0%' }}</span>
+                </p>
+                <p class="mb-0">
+                    <strong>連対:</strong> {{ stats.places }}
+                    <span class="badge bg-info">{{ '{:.1%}'.format(stats.place_rate) if stats.place_rate else '0.0%' }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

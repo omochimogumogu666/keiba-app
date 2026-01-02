@@ -86,13 +86,54 @@ def api_race_predictions(race_id):
 @predictions_bp.route('/accuracy')
 def prediction_accuracy():
     """Show prediction accuracy statistics."""
-    # TODO: Implement accuracy calculation
-    # Compare predictions with actual results
+    from sqlalchemy import func
+    from src.data.models import RaceResult
+
+    # Basic statistics
+    total_predictions = Prediction.query.count()
+    total_races = db.session.query(Race).join(Prediction).distinct().count()
+
+    # Calculate accuracy - compare predictions with actual results
+    # Find predictions where we have actual results
+    predictions_with_results = db.session.query(
+        Prediction, RaceResult
+    ).join(
+        RaceResult,
+        (Prediction.race_id == RaceResult.race_id) &
+        (Prediction.horse_id == RaceResult.horse_id)
+    ).all()
+
+    # Win accuracy (predicted position 1 == actual position 1)
+    win_predictions = [p for p, r in predictions_with_results if p.predicted_position == 1]
+    win_correct = [p for p, r in predictions_with_results
+                   if p.predicted_position == 1 and r.finish_position == 1]
+    win_accuracy = len(win_correct) / len(win_predictions) if win_predictions else 0
+
+    # Place accuracy (predicted top 3 == actual top 3)
+    place_predictions = [p for p, r in predictions_with_results if p.predicted_position <= 3]
+    place_correct = [p for p, r in predictions_with_results
+                     if p.predicted_position <= 3 and r.finish_position <= 3]
+    place_accuracy = len(place_correct) / len(place_predictions) if place_predictions else 0
+
+    # Top pick win rate (how often our #1 pick wins)
+    top_pick_wins = len(win_correct)
+    top_pick_total = len(win_predictions)
+
+    # Model performance breakdown
+    model_stats = db.session.query(
+        Prediction.model_name,
+        func.count(Prediction.id).label('count')
+    ).group_by(Prediction.model_name).all()
 
     stats = {
-        'total_predictions': Prediction.query.count(),
-        'total_races': db.session.query(Race).join(Prediction).distinct().count(),
-        # Add more statistics
+        'total_predictions': total_predictions,
+        'total_races': total_races,
+        'predictions_with_results': len(predictions_with_results),
+        'win_accuracy': win_accuracy,
+        'place_accuracy': place_accuracy,
+        'top_pick_wins': top_pick_wins,
+        'top_pick_total': top_pick_total,
+        'model_stats': model_stats
     }
 
     return render_template(

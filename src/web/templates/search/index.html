@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}検索 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-search"></i> 検索
+        </h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8 offset-md-2">
+        <form method="get" action="{{ url_for('search.search') }}">
+            <div class="input-group input-group-lg">
+                <input type="text" class="form-control" name="q" placeholder="馬名、騎手名、調教師名、レース名で検索..."
+                       value="{{ query }}" autofocus>
+                <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-search"></i> 検索
+                </button>
+            </div>
+            <small class="text-muted">2文字以上入力してください</small>
+        </form>
+    </div>
+</div>
+
+{% if results is not none %}
+    {% if total_results > 0 %}
+        <div class="row">
+            <div class="col-12">
+                <p class="text-muted">検索結果: {{ total_results }}件</p>
+            </div>
+        </div>
+
+        <!-- Horses -->
+        {% if results.horses %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="h5 mb-3">
+                        <i class="bi bi-award"></i> 馬 ({{ results.horses|length }}件)
+                    </h3>
+                    <div class="list-group">
+                        {% for horse in results.horses %}
+                            <a href="{{ url_for('entities.horse_detail', horse_id=horse.id) }}"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ horse.name }}</h5>
+                                    <small class="text-muted">
+                                        {% if horse.sex %}{{ horse.sex }}{% endif %}
+                                        {% if horse.age %}{{ horse.age }}歳{% endif %}
+                                    </small>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Jockeys -->
+        {% if results.jockeys %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="h5 mb-3">
+                        <i class="bi bi-person-badge"></i> 騎手 ({{ results.jockeys|length }}件)
+                    </h3>
+                    <div class="list-group">
+                        {% for jockey in results.jockeys %}
+                            <a href="{{ url_for('entities.jockey_detail', jockey_id=jockey.id) }}"
+                               class="list-group-item list-group-item-action">
+                                <h5 class="mb-1">{{ jockey.name }}</h5>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Trainers -->
+        {% if results.trainers %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="h5 mb-3">
+                        <i class="bi bi-person-workspace"></i> 調教師 ({{ results.trainers|length }}件)
+                    </h3>
+                    <div class="list-group">
+                        {% for trainer in results.trainers %}
+                            <a href="{{ url_for('entities.trainer_detail', trainer_id=trainer.id) }}"
+                               class="list-group-item list-group-item-action">
+                                <h5 class="mb-1">{{ trainer.name }}</h5>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Races -->
+        {% if results.races %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="h5 mb-3">
+                        <i class="bi bi-trophy"></i> レース ({{ results.races|length }}件)
+                    </h3>
+                    <div class="list-group">
+                        {% for race in results.races %}
+                            <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ race.race_name }}</h5>
+                                    <small class="text-muted">{{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}</small>
+                                </div>
+                                <p class="mb-1">
+                                    <small>{{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R</small>
+                                </p>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> "{{ query }}" に一致する結果が見つかりませんでした。
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}
