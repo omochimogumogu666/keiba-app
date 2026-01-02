@@ -57,11 +57,13 @@ def register_blueprints(app):
     from src.web.routes.predictions import predictions_bp
     from src.web.routes.entities import entities_bp
     from src.web.routes.search import search_bp
+    from src.web.routes.api import api_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(predictions_bp)
     app.register_blueprint(entities_bp)
     app.register_blueprint(search_bp)
+    app.register_blueprint(api_bp)
 
     logger.info("Blueprints registered")
 
