@@ -378,45 +378,89 @@ def save_race_results_to_db(race_id, results):
 
 def save_horse_profile_to_db(profile):
     """
-    Save horse profile to database.
+    Save horse profile to database, including pedigree and trainer information.
 
     Args:
-        profile: Dictionary with horse profile information
+        profile: Dictionary with horse profile information from scraper
 
     Returns:
         Horse instance
     """
     from src.data.models import Horse
 
-    # Get or create horse
+    # First, handle sire if present
+    sire = None
+    if profile.get('sire_id') and profile.get('sire_name'):
+        sire = get_or_create_horse(
+            jra_horse_id=profile['sire_id'],
+            name=profile['sire_name']
+        )
+
+    # Handle dam if present
+    dam = None
+    if profile.get('dam_id') and profile.get('dam_name'):
+        dam = get_or_create_horse(
+            jra_horse_id=profile['dam_id'],
+            name=profile['dam_name']
+        )
+
+    # Handle trainer if present
+    trainer = None
+    if profile.get('trainer_id') and profile.get('trainer_name'):
+        trainer = get_or_create_trainer(
+            jra_trainer_id=profile['trainer_id'],
+            name=profile['trainer_name']
+        )
+
+    # Get or create the main horse
     horse = Horse.query.filter_by(jra_horse_id=profile['jra_horse_id']).first()
 
     if not horse:
+        # Create new horse with all available information
         horse = Horse(
             jra_horse_id=profile['jra_horse_id'],
             name=profile.get('name'),
             birth_date=profile.get('birth_date'),
-            sex=profile.get('sex')
+            sex=profile.get('sex'),
+            sire_id=sire.id if sire else None,
+            dam_id=dam.id if dam else None,
+            trainer_id=trainer.id if trainer else None
         )
         db.session.add(horse)
+        logger.info(f"Created new horse profile: {profile.get('name')} ({profile['jra_horse_id']})")
     else:
-        # Update existing horse
-        if profile.get('name'):
+        # Update existing horse with new information
+        updated = False
+
+        if profile.get('name') and horse.name != profile['name']:
             horse.name = profile['name']
-        if profile.get('birth_date'):
+            updated = True
+
+        if profile.get('birth_date') and horse.birth_date != profile['birth_date']:
             horse.birth_date = profile['birth_date']
-        if profile.get('sex'):
+            updated = True
+
+        if profile.get('sex') and horse.sex != profile['sex']:
             horse.sex = profile['sex']
+            updated = True
 
-    # Handle sire and dam (simplified - would need to get/create them properly)
-    # TODO: Implement proper sire/dam handling with get_or_create
+        if sire and horse.sire_id != sire.id:
+            horse.sire_id = sire.id
+            updated = True
 
-    # Handle trainer
-    if profile.get('trainer_name'):
-        # TODO: Extract trainer ID from profile
-        pass
+        if dam and horse.dam_id != dam.id:
+            horse.dam_id = dam.id
+            updated = True
+
+        if trainer and horse.trainer_id != trainer.id:
+            horse.trainer_id = trainer.id
+            updated = True
+
+        if updated:
+            logger.info(f"Updated horse profile: {profile.get('name')} ({profile['jra_horse_id']})")
+        else:
+            logger.debug(f"Horse profile unchanged: {profile.get('name')} ({profile['jra_horse_id']})")
 
     db.session.commit()
-    logger.info(f"Saved profile for horse {profile['jra_horse_id']}")
 
     return horse

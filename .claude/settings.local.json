@@ -11,7 +11,9 @@
       "Edit",
       "Write",
       "Bash(python -m pytest:*)",
-      "Bash(python scripts/debug_race_card_html.py:*)"
+      "Bash(python scripts/debug_race_card_html.py:*)",
+      "Bash(python:*)",
+      "Bash(dir:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

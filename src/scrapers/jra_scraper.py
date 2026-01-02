@@ -717,32 +717,37 @@ class JRAScraper:
         logger.info(f"Scraped results for {len(result['results'])} horses in race {race_id}")
         return result
 
-    def scrape_horse_profile(self, horse_id: str) -> Optional[Dict]:
+    def scrape_horse_profile(self, horse_id: str, cname: Optional[str] = None) -> Optional[Dict]:
         """
         Scrape detailed horse profile and history.
 
         Args:
-            horse_id: JRA horse ID
+            horse_id: JRA horse ID (CNAME parameter)
+            cname: Optional CNAME parameter (same as horse_id if not provided)
 
         Returns:
             Dictionary with horse information
         """
-        from src.scrapers.utils import clean_text
+        from src.scrapers.utils import clean_text, parse_japanese_number
         import re
 
-        logger.info(f"Scraping horse profile for {horse_id}")
+        # Use cname if provided, otherwise use horse_id
+        cname_param = cname if cname else horse_id
 
-        # Construct horse profile URL (this may need adjustment based on actual JRA URL structure)
-        horse_url = f"{self.BASE_URL}/horse/{horse_id}/"
+        logger.info(f"Scraping horse profile for {cname_param}")
+
+        # Construct horse profile URL using CNAME
+        # JRA horse profile URL format: /JRADB/accessS.html?CNAME=<cname>
+        horse_url = f"{self.BASE_URL}/JRADB/accessS.html?CNAME={cname_param}"
 
         response = self._make_request(horse_url)
         if not response:
-            logger.error(f"Failed to fetch horse profile for {horse_id}")
+            logger.error(f"Failed to fetch horse profile for {cname_param}")
             return None
 
         soup = self._parse_html(response.text)
         if not soup:
-            logger.error(f"Failed to parse horse profile HTML for {horse_id}")
+            logger.error(f"Failed to parse horse profile HTML for {cname_param}")
             return None
 
         # Initialize profile structure
@@ -752,118 +757,291 @@ class JRAScraper:
             'birth_date': None,
             'sex': None,
             'sire_name': None,
+            'sire_id': None,
             'dam_name': None,
+            'dam_id': None,
             'trainer_name': None,
+            'trainer_id': None,
+            'owner': None,
+            'breeder': None,
+            'total_races': 0,
+            'total_wins': 0,
+            'total_places': 0,
+            'total_shows': 0,
+            'total_earnings': 0,
             'past_performances': []
         }
 
-        # Extract basic information
-        info_text = soup.get_text()
+        # Extract horse name from H1 tag
+        # Format: "馬名 (Horse Name)"
+        h1_tag = soup.find('h1')
+        if h1_tag:
+            h1_text = clean_text(h1_tag.get_text())
+            # Remove common prefixes like "競走馬情報" if present
+            h1_text = re.sub(r'^競走馬情報[:：]?\s*', '', h1_text)
+            profile['name'] = h1_text
+            logger.debug(f"Extracted horse name: {h1_text}")
 
-        # Horse name (usually in title or h1)
-        title_tag = soup.find('title')
-        if title_tag:
-            title_text = clean_text(title_tag.get_text())
-            # Extract horse name from title (format may vary)
-            name_match = re.search(r'([ぁ-んァ-ヶー一-龥a-zA-Z]+)', title_text)
-            if name_match:
-                profile['name'] = name_match.group(1)
+        # Extract basic information from profile table (class="basic" or "data")
+        # Look for tables with profile information
+        info_tables = soup.find_all('table', class_=lambda x: x and ('basic' in x or 'data' in x))
 
-        # Alternative: look for h1 tag
-        if not profile['name']:
-            h1_tag = soup.find('h1')
-            if h1_tag:
-                profile['name'] = clean_text(h1_tag.get_text())
-
-        # Birth date (生年月日)
-        birth_match = re.search(r'生年月日[：:]\s*(\d{4})年(\d{1,2})月(\d{1,2})日', info_text)
-        if birth_match:
-            try:
-                year = int(birth_match.group(1))
-                month = int(birth_match.group(2))
-                day = int(birth_match.group(3))
-                profile['birth_date'] = datetime(year, month, day)
-            except ValueError:
-                pass
-
-        # Sex (性別)
-        sex_match = re.search(r'性別[：:]\s*([牡牝セン])', info_text)
-        if sex_match:
-            profile['sex'] = sex_match.group(1)
-
-        # Sire (父馬)
-        sire_match = re.search(r'父[：:]\s*([ぁ-んァ-ヶー一-龥a-zA-Z]+)', info_text)
-        if sire_match:
-            profile['sire_name'] = sire_match.group(1)
-
-        # Dam (母馬)
-        dam_match = re.search(r'母[：:]\s*([ぁ-んァ-ヶー一-龥a-zA-Z]+)', info_text)
-        if dam_match:
-            profile['dam_name'] = dam_match.group(1)
-
-        # Trainer (調教師)
-        trainer_match = re.search(r'調教師[：:]\s*([ぁ-んァ-ヶー一-龥a-zA-Z\s]+)', info_text)
-        if trainer_match:
-            profile['trainer_name'] = clean_text(trainer_match.group(1))
-
-        # Extract past performances from tables (simplified)
-        tables = soup.find_all('table')
-
-        for table in tables:
+        for table in info_tables:
             rows = table.find_all('tr')
 
             for row in rows:
                 try:
-                    cells = row.find_all(['td', 'th'])
-                    if len(cells) < 4:  # Skip if too few cells
+                    # Extract key-value pairs from table rows
+                    th = row.find('th')
+                    td = row.find('td')
+
+                    if not th or not td:
                         continue
 
-                    # Try to identify performance rows (contains date, track, result, etc.)
+                    key = clean_text(th.get_text())
+                    value = clean_text(td.get_text())
+
+                    # Birth date (生年月日)
+                    if '生年月日' in key or '生' in key:
+                        birth_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', value)
+                        if birth_match:
+                            try:
+                                year = int(birth_match.group(1))
+                                month = int(birth_match.group(2))
+                                day = int(birth_match.group(3))
+                                profile['birth_date'] = datetime(year, month, day)
+                                logger.debug(f"Birth date: {profile['birth_date']}")
+                            except ValueError:
+                                pass
+
+                    # Sex (性別/性)
+                    if '性別' in key or key == '性':
+                        sex_match = re.search(r'([牡牝セン])', value)
+                        if sex_match:
+                            profile['sex'] = sex_match.group(1)
+                            logger.debug(f"Sex: {profile['sex']}")
+
+                    # Sire (父)
+                    if key == '父' or '父馬' in key:
+                        # Extract from link if available
+                        sire_link = td.find('a')
+                        if sire_link:
+                            profile['sire_name'] = clean_text(sire_link.get_text())
+                            # Extract sire CNAME from href or onclick
+                            href = sire_link.get('href', '')
+                            onclick = sire_link.get('onclick', '')
+                            sire_cname = self._extract_cname_from_url(href)
+                            if not sire_cname:
+                                sire_cname = self._extract_cname_from_onclick(onclick)
+                            if sire_cname:
+                                profile['sire_id'] = sire_cname
+                        else:
+                            profile['sire_name'] = value
+                        logger.debug(f"Sire: {profile['sire_name']}")
+
+                    # Dam (母)
+                    if key == '母' or '母馬' in key:
+                        # Extract from link if available
+                        dam_link = td.find('a')
+                        if dam_link:
+                            profile['dam_name'] = clean_text(dam_link.get_text())
+                            # Extract dam CNAME
+                            href = dam_link.get('href', '')
+                            onclick = dam_link.get('onclick', '')
+                            dam_cname = self._extract_cname_from_url(href)
+                            if not dam_cname:
+                                dam_cname = self._extract_cname_from_onclick(onclick)
+                            if dam_cname:
+                                profile['dam_id'] = dam_cname
+                        else:
+                            profile['dam_name'] = value
+                        logger.debug(f"Dam: {profile['dam_name']}")
+
+                    # Trainer (調教師)
+                    if '調教師' in key:
+                        trainer_link = td.find('a')
+                        if trainer_link:
+                            profile['trainer_name'] = clean_text(trainer_link.get_text())
+                            # Extract trainer CNAME
+                            onclick = trainer_link.get('onclick', '')
+                            trainer_cname = self._extract_cname_from_onclick(onclick)
+                            if trainer_cname:
+                                profile['trainer_id'] = trainer_cname
+                        else:
+                            profile['trainer_name'] = value
+                        logger.debug(f"Trainer: {profile['trainer_name']}")
+
+                    # Owner (馬主)
+                    if '馬主' in key:
+                        profile['owner'] = value
+
+                    # Breeder (生産者)
+                    if '生産者' in key:
+                        profile['breeder'] = value
+
+                except Exception as e:
+                    logger.debug(f"Failed to parse profile row: {e}")
+                    continue
+
+        # Extract career statistics (通算成績)
+        # Look for statistics in text or table
+        page_text = soup.get_text()
+
+        # Pattern: "XX戦X勝" or "通算成績: XX-X-X-X"
+        career_match = re.search(r'(\d+)戦\s*(\d+)勝', page_text)
+        if career_match:
+            profile['total_races'] = int(career_match.group(1))
+            profile['total_wins'] = int(career_match.group(2))
+
+        # Extract place and show counts if available (format: XX-X-X-X)
+        record_match = re.search(r'(\d+)-(\d+)-(\d+)-(\d+)', page_text)
+        if record_match:
+            profile['total_wins'] = int(record_match.group(1))
+            profile['total_places'] = int(record_match.group(2))
+            profile['total_shows'] = int(record_match.group(3))
+
+        # Extract total earnings (獲得賞金)
+        earnings_match = re.search(r'獲得賞金[：:]\s*([0-9,]+)\s*万円', page_text)
+        if earnings_match:
+            earnings_str = earnings_match.group(1).replace(',', '')
+            try:
+                profile['total_earnings'] = int(earnings_str) * 10000  # Convert to yen
+            except ValueError:
+                pass
+
+        # Extract past performances from race history table
+        # Look for tables with class containing "result", "history", or "race"
+        performance_tables = soup.find_all('table', class_=lambda x: x and
+                                          ('result' in ' '.join(x).lower() or
+                                           'history' in ' '.join(x).lower() or
+                                           'race' in ' '.join(x).lower()))
+
+        # If no specific table found, check all tables
+        if not performance_tables:
+            performance_tables = soup.find_all('table')
+
+        for table in performance_tables:
+            tbody = table.find('tbody')
+            rows = (tbody.find_all('tr') if tbody else table.find_all('tr'))
+
+            for row in rows:
+                try:
+                    cells = row.find_all(['td', 'th'])
+                    if len(cells) < 5:  # Skip if too few cells for a performance record
+                        continue
+
                     cell_texts = [clean_text(cell.get_text()) for cell in cells]
 
-                    # Look for date pattern
+                    # Look for date pattern to identify performance rows
                     date_match = None
-                    for text in cell_texts:
-                        date_match = re.match(r'(\d{4})/(\d{1,2})/(\d{1,2})', text)
+                    date_idx = None
+                    for i, text in enumerate(cell_texts):
+                        # Match formats: YYYY/MM/DD or YYYY.MM.DD
+                        date_match = re.search(r'(\d{4})[/.](\d{1,2})[/.](\d{1,2})', text)
                         if date_match:
+                            date_idx = i
                             break
 
-                    if date_match:
-                        # This row likely contains a past performance
-                        performance = {
-                            'date': f"{date_match.group(1)}-{date_match.group(2):0>2}-{date_match.group(3):0>2}",
-                            'track': None,
-                            'finish_position': None,
-                            'race_name': None
-                        }
+                    if not date_match:
+                        continue
 
-                        # Extract track name
-                        for text in cell_texts:
-                            for track_name in ['東京', '中山', '京都', '阪神', '中京', '札幌', '函館', '福島', '新潟', '小倉']:
-                                if track_name in text:
-                                    performance['track'] = track_name
-                                    break
+                    # This row contains a past performance
+                    performance = {
+                        'date': f"{date_match.group(1)}-{int(date_match.group(2)):02d}-{int(date_match.group(3)):02d}",
+                        'track': None,
+                        'race_name': None,
+                        'distance': None,
+                        'surface': None,
+                        'finish_position': None,
+                        'finish_time': None,
+                        'jockey': None,
+                        'weight': None,
+                        'horse_weight': None
+                    }
 
-                        # Extract finish position (着順)
-                        for text in cell_texts:
-                            pos_match = re.match(r'^(\d{1,2})$', text)
-                            if pos_match:
-                                performance['finish_position'] = int(pos_match.group(1))
+                    # Extract track name
+                    for text in cell_texts:
+                        for track_name in ['東京', '中山', '京都', '阪神', '中京', '札幌', '函館', '福島', '新潟', '小倉']:
+                            if track_name in text:
+                                performance['track'] = track_name
                                 break
+                        if performance['track']:
+                            break
 
-                        # Extract race name (usually longer text)
-                        for text in cell_texts:
-                            if len(text) > 5 and not re.match(r'^\d+$', text):
+                    # Extract finish position (着順) - usually a number 1-18
+                    for text in cell_texts:
+                        if text.isdigit() and 1 <= int(text) <= 18:
+                            performance['finish_position'] = int(text)
+                            break
+
+                    # Extract race name (longer text without numbers)
+                    for text in cell_texts:
+                        if len(text) > 3 and not text.isdigit() and '年' not in text:
+                            # Skip if it's track name only
+                            if text not in ['東京', '中山', '京都', '阪神', '中京', '札幌', '函館', '福島', '新潟', '小倉']:
                                 performance['race_name'] = text
                                 break
 
+                    # Extract distance (e.g., "2000m", "1600")
+                    for text in cell_texts:
+                        dist_match = re.search(r'(\d{3,4})[mメートル]?', text)
+                        if dist_match:
+                            performance['distance'] = int(dist_match.group(1))
+                            break
+
+                    # Extract surface type (芝/ダート)
+                    for text in cell_texts:
+                        if '芝' in text:
+                            performance['surface'] = 'turf'
+                            break
+                        elif 'ダート' in text or 'ダ' in text:
+                            performance['surface'] = 'dirt'
+                            break
+
+                    # Extract finish time (format: M:SS.S)
+                    for text in cell_texts:
+                        time_match = re.match(r'(\d+):(\d{2})\.(\d)', text)
+                        if time_match:
+                            minutes = int(time_match.group(1))
+                            seconds = int(time_match.group(2))
+                            tenths = int(time_match.group(3))
+                            performance['finish_time'] = minutes * 60 + seconds + tenths / 10.0
+                            break
+
+                    # Extract jockey name (look for cells with links)
+                    for cell in cells:
+                        jockey_link = cell.find('a')
+                        if jockey_link:
+                            onclick = jockey_link.get('onclick', '')
+                            # Check if this is a jockey link
+                            if 'jockey' in onclick.lower() or 'kmk' in onclick:
+                                performance['jockey'] = clean_text(jockey_link.get_text())
+                                break
+
+                    # Extract weight (斤量) - format: XX.X kg
+                    for text in cell_texts:
+                        weight_match = re.match(r'^(\d{2}\.?\d?)$', text)
+                        if weight_match and 40 <= float(text) <= 70:
+                            performance['weight'] = float(text)
+                            break
+
+                    # Extract horse weight (馬体重) - format: XXX
+                    for text in cell_texts:
+                        hw_match = re.match(r'^(\d{3})$', text)
+                        if hw_match and 300 <= int(text) <= 600:
+                            performance['horse_weight'] = int(text)
+                            break
+
+                    # Only add if we have essential data
+                    if performance['finish_position'] or performance['race_name']:
                         profile['past_performances'].append(performance)
 
                 except Exception as e:
                     logger.debug(f"Failed to parse performance row: {e}")
                     continue
 
-        logger.info(f"Scraped profile for horse {horse_id} ({profile.get('name', 'Unknown')})")
+        logger.info(f"Scraped profile for horse {cname_param} ({profile.get('name', 'Unknown')}): "
+                   f"{len(profile['past_performances'])} past races")
         return profile
 
     def get_upcoming_races(self, days_ahead: int = 7) -> List[Dict]:
