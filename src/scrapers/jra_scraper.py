@@ -58,6 +58,9 @@ class JRAScraper:
             )
             response.raise_for_status()
 
+            # JRA uses Shift_JIS encoding
+            response.encoding = 'shift_jis'
+
             # Polite scraping: wait before next request
             time.sleep(self.delay)
 
@@ -303,16 +306,114 @@ class JRAScraper:
             logger.error(f"Failed to parse race card HTML for {race_id}")
             return None
 
-        # Initialize result structure
+        # Initialize result structure with default values
         race_card = {
-            'race_info': {
-                'jra_race_id': race_id,
-                'track_condition': None,
-                'weather': None,
-                'prize_money': None
-            },
+            'jra_race_id': race_id,
+            'race_name': None,
+            'track': None,
+            'race_date': None,
+            'distance': None,
+            'surface': None,
+            'race_class': None,
+            'track_condition': None,
+            'weather': None,
+            'prize_money': None,
             'entries': []
         }
+
+        # Extract race information from H1 tag
+        # Format: "出馬表 2026年1月4日(日)1回中山1日 11レース"
+        # Note: There are multiple H1 tags, need to find the one with race info
+        h1_tags = soup.find_all('h1')
+        h1_text = None
+        for h1_tag in h1_tags:
+            text = clean_text(h1_tag.get_text())
+            # Look for H1 with race info (contains "レース" or "回")
+            if 'レース' in text or ('回' in text and '日' in text):
+                h1_text = text
+                break
+
+        if h1_text:
+            logger.debug(f"H1 text: {h1_text}")
+
+            # Extract date
+            date_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', h1_text)
+            if date_match:
+                try:
+                    from datetime import datetime
+                    year = int(date_match.group(1))
+                    month = int(date_match.group(2))
+                    day = int(date_match.group(3))
+                    race_card['race_date'] = datetime(year, month, day)
+                except ValueError:
+                    pass
+
+            # Extract track name (e.g., "中山", "東京", "京都", etc.)
+            # Pattern: N回[競馬場]N日
+            track_match = re.search(r'\d+回([^0-9]+?)\d+日', h1_text)
+            if track_match:
+                track_name = track_match.group(1)
+                race_card['track'] = track_name
+                logger.debug(f"Extracted track: {track_name}")
+
+            # Extract race number (e.g., "11レース" -> 11)
+            race_num_match = re.search(r'(\d+)レース', h1_text)
+            if race_num_match:
+                race_card['race_number'] = int(race_num_match.group(1))
+
+        # Extract race details from race_title div
+        # Format: "第75回日刊スポーツ賞中山金杯 4歳以上オープン(国際)(指定)芝・右コース:2,000メートル(外・外)"
+        race_title_div = soup.find('div', class_='race_title')
+        if race_title_div:
+            title_text = clean_text(race_title_div.get_text())
+            logger.debug(f"Race title text: {title_text}")
+
+            # Extract race name (everything before "歳以上" or before course details)
+            # Remove "第N回" prefix if present
+            name_text = re.sub(r'^第\d+回', '', title_text)
+
+            # Split at course details (e.g., "芝・", "ダート・", "障害")
+            if 'コース' in name_text:
+                parts = name_text.split('コース')
+                if len(parts) > 0:
+                    # Take everything before course info
+                    before_course = parts[0]
+                    # Remove trailing surface/direction info
+                    name = re.sub(r'[芝ダート障害]・[左右内外]$', '', before_course).strip()
+                    race_card['race_name'] = name
+                    logger.debug(f"Extracted race name: {name}")
+
+            # Extract distance (e.g., "2,000メートル" or "2000m")
+            distance_match = re.search(r'[：:]\s*([0-9,]+)\s*[メートルm]', title_text)
+            if distance_match:
+                distance_str = distance_match.group(1).replace(',', '')
+                try:
+                    race_card['distance'] = int(distance_str)
+                    logger.debug(f"Extracted distance: {race_card['distance']}m")
+                except ValueError:
+                    pass
+
+            # Extract surface type (芝/ダート/障害)
+            if '芝' in title_text:
+                race_card['surface'] = 'turf'
+            elif 'ダート' in title_text:
+                race_card['surface'] = 'dirt'
+            elif '障害' in title_text:
+                race_card['surface'] = 'jump'
+
+            # Extract race class (G1, G2, G3, etc.)
+            if 'G1' in title_text or 'GⅠ' in title_text:
+                race_card['race_class'] = 'G1'
+            elif 'G2' in title_text or 'GⅡ' in title_text:
+                race_card['race_class'] = 'G2'
+            elif 'G3' in title_text or 'GⅢ' in title_text:
+                race_card['race_class'] = 'G3'
+            elif 'オープン' in title_text or 'OP' in title_text:
+                race_card['race_class'] = 'Open'
+            elif '未勝利' in title_text:
+                race_card['race_class'] = 'Maiden'
+            elif '新馬' in title_text:
+                race_card['race_class'] = 'Newcomer'
 
         # Extract prize money from prize list
         prize_list = soup.find('ul', class_='prize')
@@ -328,7 +429,7 @@ class JRAScraper:
                         prize_text = clean_text(num_span.get_text())
                         prize_text = prize_text.replace(',', '')
                         try:
-                            race_card['race_info']['prize_money'] = int(prize_text) * 10000  # Convert 万円 to 円
+                            race_card['prize_money'] = int(prize_text) * 10000  # Convert 万円 to 円
                         except ValueError:
                             logger.warning(f"Failed to parse prize money: {prize_text}")
 
