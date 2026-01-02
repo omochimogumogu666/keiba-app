@@ -77,10 +77,55 @@ python scripts/scrape_and_save_results.py
 python scripts/scrape_and_save_results.py 2026-01-01
 ```
 
+### 特徴量エンジニアリング
+
+**データベースから特徴量を抽出:**
+```bash
+python scripts/extract_features.py
+```
+
+出力ファイル（`data/processed/`に保存）:
+- `features_raw.csv` - 生の特徴量
+- `features_processed.csv` - 正規化された特徴量
+- `labels_regression.csv` - 回帰用ラベル（着順）
+- `labels_binary.csv` - 二値分類用ラベル（勝敗）
+- `labels_multiclass.csv` - 多クラス分類用ラベル（勝/複/他）
+
 ### モデルの訓練
 
+**RandomForestモデルの訓練（回帰）:**
 ```bash
-python scripts/train_model.py
+# データベースから直接訓練
+python scripts/train_model.py --model random_forest --task regression
+
+# CSVファイルから訓練
+python scripts/train_model.py --model random_forest --task regression --data-source csv
+```
+
+**XGBoostモデルの訓練（分類）:**
+```bash
+python scripts/train_model.py --model xgboost --task classification
+```
+
+**両方のモデルを訓練:**
+```bash
+python scripts/train_model.py --model both --task regression
+```
+
+訓練済みモデルは `data/models/` に保存されます。
+
+### 予想の生成
+
+**訓練済みモデルで予想を生成:**
+```bash
+# 今日のレースを予想
+python scripts/generate_predictions.py --model-path data/models/random_forest_regression_20260103_120000.pkl --save-to-db
+
+# 特定のレースを予想
+python scripts/generate_predictions.py --model-path data/models/xgboost_regression_20260103_120000.pkl --race-id 123 --save-to-db
+
+# CSV出力
+python scripts/generate_predictions.py --model-path data/models/random_forest_regression_20260103_120000.pkl --output-csv predictions.csv
 ```
 
 ### Webアプリケーションの起動
@@ -151,9 +196,9 @@ flake8
 - [x] データスクレイパーの実装（レースカレンダー、出馬表、レース結果、馬プロフィール）
 - [x] データベース保存機能の実装（get-or-createパターン）
 - [x] テストの実装（スクレイピング、データベース操作）
-- [ ] 特徴量エンジニアリング
-- [ ] 機械学習モデルの訓練
-- [ ] 予想機能の実装
+- [x] 特徴量エンジニアリング
+- [x] 機械学習モデルの訓練
+- [x] 予想機能の実装
 - [ ] Webインターフェースの完成
 - [ ] APIエンドポイントの実装
 - [ ] デプロイ
@@ -168,13 +213,26 @@ flake8
 - ✅ CNAMEパラメータの自動抽出
 
 #### データベース
-- ✅ Track, Horse, Jockey, Trainer, Race, RaceEntry, RaceResult モデル
+- ✅ Track, Horse, Jockey, Trainer, Race, RaceEntry, RaceResult, Prediction モデル
 - ✅ get-or-create パターンによる重複防止
 - ✅ 完全な保存ワークフロー
 
+#### 機械学習
+- ✅ 特徴量エンジニアリング（40+特徴量）
+  - 馬の過去成績統計（勝率、複勝率、距離別・馬場別・コース別）
+  - 騎手・調教師の統計
+  - レース固有の特徴（距離、馬場状態、天候、クラス）
+  - 最近の成績トレンド
+- ✅ データ前処理パイプライン（欠損値処理、正規化、特徴選択）
+- ✅ RandomForestモデル（回帰・分類）
+- ✅ XGBoostモデル（回帰・分類）
+- ✅ モデル評価指標（RMSE, MAE, ROI, Hit Rate, ランク相関）
+- ✅ モデル永続化とバージョニング
+
 #### テスト
-- ✅ ユニットテスト（パース機能）
+- ✅ ユニットテスト（パース機能、特徴量抽出、MLモデル）
 - ✅ インテグレーションテスト（データベース保存）
+- ✅ 包括的なテストスイート（43テスト）
 - ✅ pytest による自動テスト
 
 詳細なドキュメントは [CLAUDE.md](CLAUDE.md) を参照してください。
