@@ -82,6 +82,51 @@ class JRAScraper:
             logger.error(f"HTML parsing failed: {e}")
             return None
 
+    def _extract_cname_from_url(self, url: str) -> Optional[str]:
+        """
+        Extract CNAME parameter from JRA URL.
+
+        Args:
+            url: JRA URL string
+
+        Returns:
+            CNAME value or None
+        """
+        if '?CNAME=' in url:
+            try:
+                return url.split('?CNAME=')[1].split('&')[0]
+            except IndexError:
+                return None
+        return None
+
+    def _extract_race_links(self, soup: BeautifulSoup) -> List[Dict]:
+        """
+        Extract race links and CNAME from soup object.
+
+        Args:
+            soup: BeautifulSoup object
+
+        Returns:
+            List of dictionaries with race link information
+        """
+        race_links = []
+
+        # Find all links to JRADB
+        for link in soup.find_all('a', href=True):
+            href = link.get('href', '')
+
+            # Check if this is a JRADB race link
+            if '/JRADB/accessD.html' in href or 'CNAME=' in href:
+                cname = self._extract_cname_from_url(href)
+                if cname:
+                    race_links.append({
+                        'url': href if href.startswith('http') else self.BASE_URL + href,
+                        'cname': cname,
+                        'text': link.get_text(strip=True)
+                    })
+
+        return race_links
+
     def scrape_race_calendar(self, date: datetime) -> List[Dict]:
         """
         Scrape race calendar for a specific date.
@@ -92,115 +137,484 @@ class JRAScraper:
         Returns:
             List of race information dictionaries
         """
+        from src.scrapers.utils import parse_distance, clean_text
+        import re
+
         logger.info(f"Scraping race calendar for {date.strftime('%Y-%m-%d')}")
 
-        # TODO: Implement actual JRA calendar scraping
-        # This is a placeholder implementation
         races = []
 
-        # Example structure of what should be returned:
-        # races = [
-        #     {
-        #         'jra_race_id': '202401010101',
-        #         'track': '東京',
-        #         'race_date': date,
-        #         'race_number': 1,
-        #         'race_name': 'Example Race',
-        #         'distance': 1600,
-        #         'surface': 'turf',
-        #         'race_class': 'OP'
-        #     },
-        #     ...
-        # ]
+        # Access "This Week's Races" page
+        calendar_url = f"{self.BASE_URL}/keiba/thisweek/"
+        response = self._make_request(calendar_url)
 
-        logger.warning("Race calendar scraping not yet implemented - returning empty list")
+        if not response:
+            logger.error("Failed to fetch race calendar")
+            return races
+
+        soup = self._parse_html(response.text)
+        if not soup:
+            logger.error("Failed to parse race calendar HTML")
+            return races
+
+        # Extract race links
+        race_links = self._extract_race_links(soup)
+        logger.debug(f"Found {len(race_links)} race links")
+
+        # Process each race link to extract basic information
+        for link_info in race_links:
+            try:
+                cname = link_info['cname']
+                link_text = link_info['text']
+
+                # Try to extract race information from CNAME and link text
+                # CNAME format: pw01dde[競馬場コード][日付YYYYMMDD]/[レース番号]
+                # Example: pw01dde0106202601021120260105/6C
+
+                # Extract date from CNAME (this is a best-effort approach)
+                date_match = re.search(r'(20\d{6})', cname)
+                race_date = date
+                if date_match:
+                    try:
+                        date_str = date_match.group(1)
+                        race_date = datetime.strptime(date_str, '%Y%m%d')
+                    except ValueError:
+                        pass
+
+                # Extract race number from CNAME (approximate)
+                race_number_match = re.search(r'/(\d+)', cname)
+                race_number = 1
+                if race_number_match:
+                    try:
+                        race_number = int(race_number_match.group(1), 16)  # Hexadecimal
+                    except ValueError:
+                        race_number = 1
+
+                # Extract basic info from link text
+                race_name = clean_text(link_text) if link_text else "Unknown Race"
+
+                # Extract distance from text (if present)
+                distance = None
+                distance_match = re.search(r'(\d{3,4})[mメートル]', link_text)
+                if distance_match:
+                    distance = int(distance_match.group(1))
+
+                # Extract surface type (turf/dirt)
+                surface = 'turf'  # Default
+                if 'ダート' in link_text or 'ダ' in link_text:
+                    surface = 'dirt'
+
+                # Extract race class
+                race_class = None
+                if 'G1' in link_text:
+                    race_class = 'G1'
+                elif 'G2' in link_text:
+                    race_class = 'G2'
+                elif 'G3' in link_text:
+                    race_class = 'G3'
+                elif 'OP' in link_text or 'オープン' in link_text:
+                    race_class = 'OP'
+
+                # Generate jra_race_id (format: YYYYMMDD + track_code + race_number)
+                # This is a simplified approach; actual ID may vary
+                jra_race_id = f"{race_date.strftime('%Y%m%d')}01{race_number:02d}"
+
+                # Extract track name (simplified - would need more sophisticated parsing)
+                track = "Unknown"
+                for track_name in ['東京', '中山', '京都', '阪神', '中京', '札幌', '函館', '福島', '新潟', '小倉']:
+                    if track_name in link_text:
+                        track = track_name
+                        break
+
+                race_info = {
+                    'jra_race_id': jra_race_id,
+                    'track': track,
+                    'race_date': race_date,
+                    'race_number': race_number,
+                    'race_name': race_name,
+                    'distance': distance,
+                    'surface': surface,
+                    'race_class': race_class,
+                    'cname': cname  # Store CNAME for future use
+                }
+
+                # Filter by date if specified
+                if race_date.date() == date.date():
+                    races.append(race_info)
+
+            except Exception as e:
+                logger.warning(f"Failed to parse race info from link: {e}")
+                continue
+
+        logger.info(f"Scraped {len(races)} races for {date.strftime('%Y-%m-%d')}")
         return races
 
-    def scrape_race_card(self, race_id: str) -> Optional[Dict]:
+    def _extract_cname_from_onclick(self, onclick_str: str) -> Optional[str]:
+        """
+        Extract CNAME from onclick attribute.
+
+        Args:
+            onclick_str: onclick attribute string like "return doAction('/JRADB/accessK.html', 'pw04kmk005386/50');"
+
+        Returns:
+            CNAME string or None
+        """
+        if not onclick_str:
+            return None
+
+        import re
+        # Extract CNAME from doAction second parameter
+        match = re.search(r"doAction\([^,]+,\s*'([^']+)'\)", onclick_str)
+        if match:
+            return match.group(1)
+        return None
+
+    def scrape_race_card(self, race_id: str, cname: Optional[str] = None) -> Optional[Dict]:
         """
         Scrape race card (entries) for a specific race.
 
         Args:
             race_id: JRA race ID
+            cname: Optional CNAME parameter for direct access
 
         Returns:
             Dictionary with race and entry information
         """
+        from src.scrapers.utils import parse_japanese_number, clean_text
+        import re
+
         logger.info(f"Scraping race card for race {race_id}")
 
-        # TODO: Implement actual JRA race card scraping
-        # This is a placeholder implementation
+        # Construct URL using CNAME if available
+        if cname:
+            race_url = f"{self.BASE_URL}/JRADB/accessD.html?CNAME={cname}"
+        else:
+            # Fallback: try to construct URL from race_id (may not work)
+            race_url = f"{self.RACE_CARD_URL}?id={race_id}"
+            logger.warning("CNAME not provided, using fallback URL construction")
 
-        # Example structure of what should be returned:
-        # race_card = {
-        #     'race_info': {
-        #         'jra_race_id': race_id,
-        #         'track_condition': '良',
-        #         'weather': '晴',
-        #         'prize_money': 10000000
-        #     },
-        #     'entries': [
-        #         {
-        #             'horse_name': 'Example Horse',
-        #             'jra_horse_id': 'H123456',
-        #             'jockey_name': 'Example Jockey',
-        #             'jra_jockey_id': 'J123',
-        #             'trainer_name': 'Example Trainer',
-        #             'jra_trainer_id': 'T123',
-        #             'post_position': 1,
-        #             'horse_number': 1,
-        #             'weight': 57.0,
-        #             'horse_weight': 500,
-        #             'horse_weight_change': -2,
-        #             'morning_odds': 3.5
-        #         },
-        #         ...
-        #     ]
-        # }
+        response = self._make_request(race_url)
+        if not response:
+            logger.error(f"Failed to fetch race card for {race_id}")
+            return None
 
-        logger.warning("Race card scraping not yet implemented - returning None")
-        return None
+        soup = self._parse_html(response.text)
+        if not soup:
+            logger.error(f"Failed to parse race card HTML for {race_id}")
+            return None
 
-    def scrape_race_result(self, race_id: str) -> Optional[Dict]:
+        # Initialize result structure
+        race_card = {
+            'race_info': {
+                'jra_race_id': race_id,
+                'track_condition': None,
+                'weather': None,
+                'prize_money': None
+            },
+            'entries': []
+        }
+
+        # Extract prize money from prize list
+        prize_list = soup.find('ul', class_='prize')
+        if prize_list:
+            # Look for first place prize in the ordered list
+            prize_ol = prize_list.find('ol')
+            if prize_ol:
+                first_place_li = prize_ol.find('li')
+                if first_place_li:
+                    # Extract number from span with class="num"
+                    num_span = first_place_li.find('span', class_='num')
+                    if num_span:
+                        prize_text = clean_text(num_span.get_text())
+                        prize_text = prize_text.replace(',', '')
+                        try:
+                            race_card['race_info']['prize_money'] = int(prize_text) * 10000  # Convert 万円 to 円
+                        except ValueError:
+                            logger.warning(f"Failed to parse prize money: {prize_text}")
+
+        # Track condition and weather are usually published closer to race time
+        # For now, leave them as None
+
+        # Extract entries from the main table (class="basic narrow-xy mt20")
+        main_table = soup.find('table', class_='basic')
+
+        if not main_table:
+            logger.warning("Could not find main entry table")
+            return race_card
+
+        tbody = main_table.find('tbody')
+        if not tbody:
+            logger.warning("Could not find tbody in main table")
+            return race_card
+
+        rows = tbody.find_all('tr')
+
+        for row in rows:
+            try:
+                entry_data = {}
+
+                # Extract post position (枠) and horse number (馬番)
+                waku_cell = row.find('td', class_='waku')
+                num_cell = row.find('td', class_='num')
+
+                if waku_cell:
+                    waku_text = clean_text(waku_cell.get_text())
+                    if waku_text and waku_text.isdigit():
+                        entry_data['post_position'] = int(waku_text)
+
+                if num_cell:
+                    num_text = clean_text(num_cell.get_text())
+                    if num_text and num_text.isdigit():
+                        entry_data['horse_number'] = int(num_text)
+
+                # Extract horse information
+                horse_cell = row.find('td', class_='horse')
+                if horse_cell:
+                    # Horse name link
+                    horse_link = horse_cell.find('div', class_='name_line')
+                    if horse_link:
+                        horse_a = horse_link.find('a')
+                        if horse_a:
+                            entry_data['horse_name'] = clean_text(horse_a.get_text())
+                            # Extract horse ID from CNAME in href
+                            href = horse_a.get('href', '')
+                            cname = self._extract_cname_from_url(href)
+                            if cname:
+                                entry_data['jra_horse_id'] = cname
+                            else:
+                                entry_data['jra_horse_id'] = 'H_UNKNOWN'
+
+                    # Trainer info
+                    trainer_p = horse_cell.find('p', class_='trainer')
+                    if trainer_p:
+                        trainer_a = trainer_p.find('a')
+                        if trainer_a:
+                            entry_data['trainer_name'] = clean_text(trainer_a.get_text())
+                            # Extract trainer ID from onclick
+                            onclick = trainer_a.get('onclick', '')
+                            cname = self._extract_cname_from_onclick(onclick)
+                            if cname:
+                                entry_data['jra_trainer_id'] = cname
+                            else:
+                                entry_data['jra_trainer_id'] = 'T_UNKNOWN'
+
+                # Extract jockey information
+                jockey_cell = row.find('td', class_='jockey')
+                if jockey_cell:
+                    # Weight
+                    weight_p = jockey_cell.find('p', class_='weight')
+                    if weight_p:
+                        weight_text = clean_text(weight_p.get_text())
+                        weight_match = re.search(r'(\d+\.?\d*)', weight_text)
+                        if weight_match:
+                            entry_data['weight'] = float(weight_match.group(1))
+
+                    # Jockey name
+                    jockey_p = jockey_cell.find('p', class_='jockey')
+                    if jockey_p:
+                        jockey_a = jockey_p.find('a')
+                        if jockey_a:
+                            entry_data['jockey_name'] = clean_text(jockey_a.get_text())
+                            # Extract jockey ID from onclick
+                            onclick = jockey_a.get('onclick', '')
+                            cname = self._extract_cname_from_onclick(onclick)
+                            if cname:
+                                entry_data['jra_jockey_id'] = cname
+                            else:
+                                entry_data['jra_jockey_id'] = 'J_UNKNOWN'
+
+                    # Age/Sex info (e.g., "牝5/鹿")
+                    age_p = jockey_cell.find('p', class_='age')
+                    if age_p:
+                        age_text = clean_text(age_p.get_text())
+                        # Parse sex (牡/牝/セン)
+                        if '牡' in age_text:
+                            entry_data['sex'] = '牡'
+                        elif '牝' in age_text:
+                            entry_data['sex'] = '牝'
+                        elif 'セン' in age_text:
+                            entry_data['sex'] = 'セン'
+
+                # Only add entry if we have at least a horse name
+                if entry_data.get('horse_name'):
+                    # Set defaults for missing values
+                    entry_data.setdefault('jra_horse_id', f"H{race_id}_{entry_data.get('horse_number', 0)}")
+                    entry_data.setdefault('jra_jockey_id', 'J_UNKNOWN')
+                    entry_data.setdefault('jra_trainer_id', 'T_UNKNOWN')
+                    entry_data.setdefault('post_position', entry_data.get('horse_number', 1))
+                    entry_data.setdefault('horse_number', 1)
+                    entry_data.setdefault('weight', 57.0)
+                    entry_data.setdefault('horse_weight', 500)
+                    entry_data.setdefault('horse_weight_change', 0)
+                    entry_data.setdefault('morning_odds', 10.0)
+
+                    race_card['entries'].append(entry_data)
+
+            except Exception as e:
+                logger.debug(f"Failed to parse entry row: {e}")
+                continue
+
+        if not race_card['entries']:
+            logger.warning(f"No entries found for race {race_id}")
+
+        logger.info(f"Scraped {len(race_card['entries'])} entries for race {race_id}")
+        return race_card
+
+    def scrape_race_result(self, race_id: str, cname: Optional[str] = None) -> Optional[Dict]:
         """
         Scrape race result for a completed race.
 
         Args:
             race_id: JRA race ID
+            cname: Optional CNAME parameter for direct access
 
         Returns:
             Dictionary with race results
         """
+        from src.scrapers.utils import parse_japanese_number, parse_time, clean_text
+        import re
+
         logger.info(f"Scraping race result for race {race_id}")
 
-        # TODO: Implement actual JRA race result scraping
-        # This is a placeholder implementation
+        # Construct URL using CNAME if available
+        if cname:
+            result_url = f"{self.BASE_URL}/JRADB/accessK.html?CNAME={cname}"
+        else:
+            # Fallback: try to access via standard result URL
+            result_url = f"{self.RACE_RESULT_URL}?id={race_id}"
+            logger.warning("CNAME not provided, using fallback URL construction")
 
-        # Example structure of what should be returned:
-        # result = {
-        #     'jra_race_id': race_id,
-        #     'results': [
-        #         {
-        #             'horse_number': 1,
-        #             'finish_position': 1,
-        #             'finish_time': 96.5,
-        #             'margin': 'クビ',
-        #             'final_odds': 3.2,
-        #             'popularity': 2,
-        #             'running_positions': [3, 3, 2, 1],
-        #             'comment': 'Good run'
-        #         },
-        #         ...
-        #     ],
-        #     'payouts': {
-        #         'win': [(1, 320)],
-        #         'place': [(1, 150), (2, 200)],
-        #         'quinella': [(1, 2, 800)]
-        #     }
-        # }
+        response = self._make_request(result_url)
+        if not response:
+            logger.error(f"Failed to fetch race result for {race_id}")
+            return None
 
-        logger.warning("Race result scraping not yet implemented - returning None")
-        return None
+        soup = self._parse_html(response.text)
+        if not soup:
+            logger.error(f"Failed to parse race result HTML for {race_id}")
+            return None
+
+        # Initialize result structure
+        result = {
+            'jra_race_id': race_id,
+            'results': [],
+            'payouts': {}
+        }
+
+        # Extract race results from tables
+        tables = soup.find_all('table')
+
+        for table in tables:
+            rows = table.find_all('tr')
+
+            for row in rows:
+                try:
+                    cells = row.find_all(['td', 'th'])
+                    if len(cells) < 3:  # Skip if too few cells
+                        continue
+
+                    result_data = {}
+                    cell_texts = [clean_text(cell.get_text()) for cell in cells]
+
+                    for i, text in enumerate(cell_texts):
+                        # Finish position (着順)
+                        if re.match(r'^\d{1,2}$', text) and not result_data.get('finish_position'):
+                            pos = parse_japanese_number(text)
+                            if pos and pos <= 18:  # Max 18 horses in a race
+                                result_data['finish_position'] = pos
+
+                        # Horse number (馬番)
+                        if re.match(r'^\d{1,2}$', text) and not result_data.get('horse_number'):
+                            num = parse_japanese_number(text)
+                            if num and num <= 18:
+                                result_data['horse_number'] = num
+
+                        # Finish time (タイム)
+                        time_match = re.match(r'(\d+):(\d{2})\.(\d)', text)
+                        if time_match:
+                            finish_time = parse_time(text)
+                            if finish_time:
+                                result_data['finish_time'] = finish_time
+
+                        # Margin (着差)
+                        if any(keyword in text for keyword in ['クビ', 'アタマ', '馬身', 'ハナ', '大差']):
+                            result_data['margin'] = text
+
+                        # Final odds (確定オッズ)
+                        odds_match = re.match(r'^(\d+\.?\d*)$', text)
+                        if odds_match and not result_data.get('final_odds'):
+                            odds = float(odds_match.group(1))
+                            if 1.0 <= odds <= 999.9:
+                                result_data['final_odds'] = odds
+
+                        # Popularity (人気)
+                        if re.match(r'^\d{1,2}$', text) and '人気' in str(cells[i]):
+                            pop = parse_japanese_number(text)
+                            if pop:
+                                result_data['popularity'] = pop
+
+                        # Running positions (コーナー通過順位)
+                        # Pattern like "1-2-3-4" or "3-3-2-1"
+                        positions_match = re.match(r'^(\d{1,2})-(\d{1,2})-(\d{1,2})-(\d{1,2})$', text)
+                        if positions_match:
+                            result_data['running_positions'] = [
+                                int(positions_match.group(1)),
+                                int(positions_match.group(2)),
+                                int(positions_match.group(3)),
+                                int(positions_match.group(4))
+                            ]
+
+                    # Look for race comment in the row
+                    for cell in cells:
+                        comment_text = clean_text(cell.get_text())
+                        if len(comment_text) > 10 and not any(char.isdigit() for char in comment_text[:5]):
+                            result_data['comment'] = comment_text
+
+                    # Only add result if we have at least finish position and horse number
+                    if result_data.get('finish_position') and result_data.get('horse_number'):
+                        # Set defaults
+                        result_data.setdefault('finish_time', 0.0)
+                        result_data.setdefault('margin', '')
+                        result_data.setdefault('final_odds', 0.0)
+                        result_data.setdefault('popularity', 0)
+                        result_data.setdefault('running_positions', [])
+                        result_data.setdefault('comment', '')
+
+                        result['results'].append(result_data)
+
+                except Exception as e:
+                    logger.debug(f"Failed to parse result row: {e}")
+                    continue
+
+        # Extract payouts (払戻金)
+        # Look for tables or sections containing payout information
+        info_text = soup.get_text()
+
+        # Win (単勝)
+        win_match = re.search(r'単勝.*?(\d+)\s+番.*?(\d{1,3}(?:,\d{3})*)\s*円', info_text)
+        if win_match:
+            horse_num = int(win_match.group(1))
+            payout = int(win_match.group(2).replace(',', ''))
+            result['payouts']['win'] = [(horse_num, payout)]
+
+        # Place (複勝)
+        place_matches = re.findall(r'複勝.*?(\d+)\s+番.*?(\d{1,3}(?:,\d{3})*)\s*円', info_text)
+        if place_matches:
+            result['payouts']['place'] = [(int(m[0]), int(m[1].replace(',', ''))) for m in place_matches]
+
+        # Quinella (馬連)
+        quinella_match = re.search(r'馬連.*?(\d+)\s*[-－]\s*(\d+).*?(\d{1,3}(?:,\d{3})*)\s*円', info_text)
+        if quinella_match:
+            horse1 = int(quinella_match.group(1))
+            horse2 = int(quinella_match.group(2))
+            payout = int(quinella_match.group(3).replace(',', ''))
+            result['payouts']['quinella'] = [(horse1, horse2, payout)]
+
+        if not result['results']:
+            logger.warning(f"No results found for race {race_id}")
+
+        logger.info(f"Scraped results for {len(result['results'])} horses in race {race_id}")
+        return result
 
     def scrape_horse_profile(self, horse_id: str) -> Optional[Dict]:
         """
@@ -212,25 +626,144 @@ class JRAScraper:
         Returns:
             Dictionary with horse information
         """
+        from src.scrapers.utils import clean_text
+        import re
+
         logger.info(f"Scraping horse profile for {horse_id}")
 
-        # TODO: Implement actual JRA horse profile scraping
-        # This is a placeholder implementation
+        # Construct horse profile URL (this may need adjustment based on actual JRA URL structure)
+        horse_url = f"{self.BASE_URL}/horse/{horse_id}/"
 
-        # Example structure of what should be returned:
-        # profile = {
-        #     'jra_horse_id': horse_id,
-        #     'name': 'Example Horse',
-        #     'birth_date': datetime(2020, 3, 15),
-        #     'sex': '牡',
-        #     'sire_name': 'Example Sire',
-        #     'dam_name': 'Example Dam',
-        #     'trainer_name': 'Example Trainer',
-        #     'past_performances': [...]
-        # }
+        response = self._make_request(horse_url)
+        if not response:
+            logger.error(f"Failed to fetch horse profile for {horse_id}")
+            return None
 
-        logger.warning("Horse profile scraping not yet implemented - returning None")
-        return None
+        soup = self._parse_html(response.text)
+        if not soup:
+            logger.error(f"Failed to parse horse profile HTML for {horse_id}")
+            return None
+
+        # Initialize profile structure
+        profile = {
+            'jra_horse_id': horse_id,
+            'name': None,
+            'birth_date': None,
+            'sex': None,
+            'sire_name': None,
+            'dam_name': None,
+            'trainer_name': None,
+            'past_performances': []
+        }
+
+        # Extract basic information
+        info_text = soup.get_text()
+
+        # Horse name (usually in title or h1)
+        title_tag = soup.find('title')
+        if title_tag:
+            title_text = clean_text(title_tag.get_text())
+            # Extract horse name from title (format may vary)
+            name_match = re.search(r'([ぁ-んァ-ヶー一-龥a-zA-Z]+)', title_text)
+            if name_match:
+                profile['name'] = name_match.group(1)
+
+        # Alternative: look for h1 tag
+        if not profile['name']:
+            h1_tag = soup.find('h1')
+            if h1_tag:
+                profile['name'] = clean_text(h1_tag.get_text())
+
+        # Birth date (生年月日)
+        birth_match = re.search(r'生年月日[：:]\s*(\d{4})年(\d{1,2})月(\d{1,2})日', info_text)
+        if birth_match:
+            try:
+                year = int(birth_match.group(1))
+                month = int(birth_match.group(2))
+                day = int(birth_match.group(3))
+                profile['birth_date'] = datetime(year, month, day)
+            except ValueError:
+                pass
+
+        # Sex (性別)
+        sex_match = re.search(r'性別[：:]\s*([牡牝セン])', info_text)
+        if sex_match:
+            profile['sex'] = sex_match.group(1)
+
+        # Sire (父馬)
+        sire_match = re.search(r'父[：:]\s*([ぁ-んァ-ヶー一-龥a-zA-Z]+)', info_text)
+        if sire_match:
+            profile['sire_name'] = sire_match.group(1)
+
+        # Dam (母馬)
+        dam_match = re.search(r'母[：:]\s*([ぁ-んァ-ヶー一-龥a-zA-Z]+)', info_text)
+        if dam_match:
+            profile['dam_name'] = dam_match.group(1)
+
+        # Trainer (調教師)
+        trainer_match = re.search(r'調教師[：:]\s*([ぁ-んァ-ヶー一-龥a-zA-Z\s]+)', info_text)
+        if trainer_match:
+            profile['trainer_name'] = clean_text(trainer_match.group(1))
+
+        # Extract past performances from tables (simplified)
+        tables = soup.find_all('table')
+
+        for table in tables:
+            rows = table.find_all('tr')
+
+            for row in rows:
+                try:
+                    cells = row.find_all(['td', 'th'])
+                    if len(cells) < 4:  # Skip if too few cells
+                        continue
+
+                    # Try to identify performance rows (contains date, track, result, etc.)
+                    cell_texts = [clean_text(cell.get_text()) for cell in cells]
+
+                    # Look for date pattern
+                    date_match = None
+                    for text in cell_texts:
+                        date_match = re.match(r'(\d{4})/(\d{1,2})/(\d{1,2})', text)
+                        if date_match:
+                            break
+
+                    if date_match:
+                        # This row likely contains a past performance
+                        performance = {
+                            'date': f"{date_match.group(1)}-{date_match.group(2):0>2}-{date_match.group(3):0>2}",
+                            'track': None,
+                            'finish_position': None,
+                            'race_name': None
+                        }
+
+                        # Extract track name
+                        for text in cell_texts:
+                            for track_name in ['東京', '中山', '京都', '阪神', '中京', '札幌', '函館', '福島', '新潟', '小倉']:
+                                if track_name in text:
+                                    performance['track'] = track_name
+                                    break
+
+                        # Extract finish position (着順)
+                        for text in cell_texts:
+                            pos_match = re.match(r'^(\d{1,2})$', text)
+                            if pos_match:
+                                performance['finish_position'] = int(pos_match.group(1))
+                                break
+
+                        # Extract race name (usually longer text)
+                        for text in cell_texts:
+                            if len(text) > 5 and not re.match(r'^\d+$', text):
+                                performance['race_name'] = text
+                                break
+
+                        profile['past_performances'].append(performance)
+
+                except Exception as e:
+                    logger.debug(f"Failed to parse performance row: {e}")
+                    continue
+
+        logger.info(f"Scraped profile for horse {horse_id} ({profile.get('name', 'Unknown')})")
+        return profile
 
     def get_upcoming_races(self, days_ahead: int = 7) -> List[Dict]:
         """
