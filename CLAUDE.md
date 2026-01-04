@@ -62,7 +62,68 @@ flake8
 
 ## Critical Architecture Patterns
 
-### 1. JRA Scraping Architecture
+### 1. Netkeiba.com Scraping Architecture (CURRENT)
+
+**Primary Data Source**: The application uses [netkeiba.com](https://netkeiba.com) as the primary data source. This is more stable and reliable than scraping JRA's official site directly.
+
+**URL Structure**:
+- **Race Calendar**: Uses mobile site (`https://race.sp.netkeiba.com/?pid=race_list&kaisai_date=YYYYMMDD`)
+  - PC version loads data via JavaScript, mobile version has static HTML
+  - Race IDs are embedded directly in the HTML
+- **Race Card (Shutuba)**: `https://race.netkeiba.com/race/shutuba.html?race_id=YYYYKKRRDDNN`
+- **Race Result**: `https://race.netkeiba.com/race/result.html?race_id=YYYYKKRRDDNN`
+- **Horse Profile**: `https://db.netkeiba.com/horse/HORSE_ID/`
+
+**Race ID Format**: 12-digit ID format: `YYYYKKRRDDNN`
+- YYYY = Year (4 digits)
+- KK = Kaisai code / Track code (01=札幌, 02=函館, ..., 06=中山, ...)
+- RR = Meeting number (2 digits)
+- DD = Day number (2 digits)
+- NN = Race number (2 digits)
+
+**HTML Structure Specifics**:
+```python
+# Mobile calendar: RaceList with links containing race_id parameter
+race_links = soup.find_all('a', href=re.compile(r'race_id=\d{12}'))
+
+# Race card table: Shutuba_Table RaceTable01 ShutubaTable
+# Entry rows: tr.HorseList
+# - Waku (post position): td.Waku1, td.Waku2, ...
+# - Horse number: td.Umaban1, td.Umaban2, ...
+# - Horse info: td.HorseInfo > a (href=/horse/HORSE_ID)
+# - Jockey: td.Jockey > a (href=/jockey/result/recent/JOCKEY_ID/)
+# - Trainer: td.Trainer > a (href=/trainer/result/recent/TRAINER_ID/)
+# - Weight (斤量): td after td.Barei
+# - Horse weight: td.Weight (format: "482 (+2)" or "500(0)")
+# - Morning odds: td.Popular > span#odds-X_YY
+
+# Result table: Result_Table or ResultRaceShutuba
+# Result rows: tr.HorseList (same structure as shutuba)
+# - Finish position: td.Chakujun or td.Result
+# - Time: td.Time
+# - Margin: td.Sa (着差)
+# - Final odds: td.Odds
+# - Popularity: td.Ninki
+```
+
+**Key Implementation Details**:
+- `NetkeibaScraper`: Main scraper class in `src/scrapers/netkeiba_scraper.py`
+- Encoding: **EUC-JP** (not Shift_JIS like JRA)
+- No CNAME parameters needed - much simpler URL structure
+- Horse weight parsing handles both `"482(+2)"` and `"482 (+2)"` formats (with/without spaces)
+- ID extraction regex patterns:
+  - Horse: `/horse/(\d+)` → extracts 10-digit horse ID
+  - Jockey: `/jockey/[^/]+/[^/]+/(\d+)` → extracts 5-digit jockey ID
+  - Trainer: `/trainer/[^/]+/[^/]+/(\d+)` → extracts 5-digit trainer ID
+
+**Rate Limiting**: Always use 3-second delay between requests (configured in `SCRAPING_DELAY`). This is both ethical and respects netkeiba's terms of service.
+
+### 1b. JRA Scraping Architecture (DEPRECATED)
+
+**NOTE**: Direct JRA scraping has been replaced by Netkeiba scraper. JRA's CNAME system is complex and fragile.
+
+<details>
+<summary>Historical JRA Scraper Documentation (for reference only)</summary>
 
 **CNAME Parameter System**: JRA uses a complex CNAME parameter system for URLs that cannot be programmatically generated. The scraper must:
 - Extract CNAMEs dynamically from JRA's race calendar links
@@ -70,21 +131,14 @@ flake8
   - URL parameters: `?CNAME=pw01dde0106202601011120260104/6C`
   - JavaScript onclick: `doAction('/JRADB/accessK.html', 'pw04kmk005386/50')`
 
-**Key Implementation Details**:
-- `_extract_cname_from_url()`: Extracts CNAME from URL query strings
-- `_extract_cname_from_onclick()`: Parses CNAME from onclick attributes using regex
-- `_extract_race_links()`: Finds all race links with CNAMEs from calendar pages
-
 **HTML Structure Specifics**:
 ```python
 # Race card table: class="basic"
 # Horse info: td.horse > div.name_line > a (horse name + CNAME in href)
 # Trainer info: p.trainer > a (onclick contains CNAME)
 # Jockey info: p.jockey > a (onclick contains CNAME)
-# Prize money: ul.prize > ol > li > span.num
 ```
-
-**Rate Limiting**: Always use 3-second delay between requests (configured in `SCRAPING_DELAY`). This is both ethical and required by JRA's terms of service.
+</details>
 
 ### 2. Database Model Relationships
 
@@ -318,7 +372,8 @@ Use the provided `save_race_to_db()` and `save_race_entries_to_db()` functions -
 - `config/settings.py` - Environment configurations
 
 ### Scripts
-- `scripts/scrape_and_save_results.py` - Complete workflow: scrape races, cards, and results, then save to DB
+- `scripts/scrape_and_save_results.py` - Complete workflow: scrape races, cards, and results for a single date
+- `scripts/scrape_historical_data.py` - Bulk scraping for multiple years of historical data (weekends only by default)
 - `scripts/scrape_data.py` - General data scraping script
 - `scripts/debug_race_result_html.py` - Debug script to fetch and analyze race result HTML
 - `scripts/get_horse_cname.py` - Utility to extract horse CNAMEs
