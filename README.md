@@ -24,13 +24,32 @@ JRA競馬データ（netkeiba.com経由）をスクレイピングし、機械�
 
 ## セットアップ
 
-### 1. 仮想環境の作成
+### オプション1: Docker環境（推奨）
+
+Docker環境を使用すると、PostgreSQLデータベースを含む完全な環境を簡単にセットアップできます。
+
+```bash
+# Docker Composeでサービスを起動
+docker compose up -d
+
+# データベースマイグレーションを実行
+docker compose exec web python scripts/init_docker_db.py
+
+# ブラウザでアクセス
+# http://localhost:5000
+```
+
+詳細は[Docker環境セットアップガイド](docs/DOCKER_SETUP.md)を参照してください。
+
+### オプション2: ローカル環境
+
+#### 1. 仮想環境の作成
 
 ```bash
 python -m venv venv
 ```
 
-### 2. 仮想環境のアクティベート
+#### 2. 仮想環境のアクティベート
 
 **Windows:**
 ```bash
@@ -42,7 +61,7 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
-### 3. 依存関係のインストール
+#### 3. 依存関係のインストール
 
 ```bash
 pip install -r requirements.txt
@@ -162,9 +181,101 @@ python scripts/train_model.py --model both --task regression
 
 訓練済みモデルは `data/models/` にタイムスタンプ付きで保存されます（例: `random_forest_regression_20260104_120000.pkl`）。
 
+### モデルの定期再訓練
+
+機械学習モデルを定期的に再訓練し、最新のデータで予想精度を維持・向上させます。
+
+**今すぐ再訓練を実行:**
+```bash
+python scripts/model_retraining_scheduler.py --mode once
+```
+
+**定期再訓練のスケジュール設定:**
+```bash
+# 毎週月曜2時に自動再訓練（推奨）
+python scripts/model_retraining_scheduler.py --mode schedule --interval weekly --time 02:00
+
+# 毎日2時に自動再訓練
+python scripts/model_retraining_scheduler.py --mode schedule --interval daily --time 02:00
+
+# 毎月1日2時に自動再訓練
+python scripts/model_retraining_scheduler.py --mode schedule --interval monthly --time 02:00
+```
+
+**再訓練の主な機能:**
+- **自動データ取得**: データベースから最新のデータを自動抽出
+- **モデルバージョニング**: 訓練済みモデルを自動的にバージョン管理
+- **性能比較**: 新モデルと前回モデルのパフォーマンスを自動比較
+- **自動デプロイ**: 性能が改善した場合のみ新モデルをアクティブ化（デフォルト: 5%以上改善）
+- **モデル履歴管理**: 最新5バージョンを保持、古いモデルは自動削除
+- **通知機能**: Email/Slack通知対応（オプション）
+
+**設定ファイル（`config/retraining_config.json`）:**
+```json
+{
+  "models_to_train": ["random_forest", "xgboost"],
+  "task": "regression",
+  "training_window_days": 365,
+  "validation_split": 0.15,
+  "test_split": 0.15,
+  "min_samples": 1000,
+  "performance_threshold": 0.05,
+  "keep_last_n_models": 5,
+  "models_dir": "data/models",
+  "notification": {
+    "enabled": false,
+    "email_recipients": ["your@email.com"],
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "your@email.com",
+    "smtp_password": "your-password"
+  }
+}
+```
+
+**モデルレジストリ:**
+再訓練されたすべてのモデルは `data/models/model_registry.json` に記録されます:
+- モデルタイプと訓練日時
+- パフォーマンス指標（RMSE, R2など）
+- 前回モデルとの比較結果
+- アクティブ/非アクティブステータス
+
 ### 予想の生成
 
-訓練済みモデルを使って、今後のレースの予想を生成します。
+#### 方法1: 自動スクレイピング + 予想生成（推奨）
+
+今後のレースを自動的にスクレイピングして予想を生成します。
+
+**今日のレースを予想:**
+```bash
+python scripts/predict_upcoming_races.py
+```
+
+**今日から3日後までのレースを予想:**
+```bash
+python scripts/predict_upcoming_races.py --days-ahead 3 --output-csv predictions.csv
+```
+
+**特定の日付のレースを予想:**
+```bash
+python scripts/predict_upcoming_races.py --date 2026-01-11
+```
+
+**定期的に自動実行（スケジューラー）:**
+```bash
+# 毎日8時に自動実行
+python scripts/scheduler.py --schedule daily --time 08:00
+
+# 毎週金曜日20時に自動実行
+python scripts/scheduler.py --schedule weekly --day friday --time 20:00
+
+# 即座に1回実行
+python scripts/scheduler.py --schedule once
+```
+
+詳細な使い方は [PREDICTION_AUTOMATION.md](docs/PREDICTION_AUTOMATION.md) を参照してください。
+
+#### 方法2: 手動で既存レースの予想を生成
 
 **今日のレースを予想:**
 ```bash
@@ -196,12 +307,72 @@ python scripts/generate_predictions.py \
   --output-csv predictions.csv
 ```
 
-**予想オプション:**
-- `--model-path`: 訓練済みモデルのパス（必須）
-- `--race-id`: 特定のレースID（オプション）
-- `--race-date`: 予想する日付（YYYY-MM-DD形式、デフォルト: 今日）
-- `--save-to-db`: 予想結果をデータベースに保存
-- `--output-csv`: CSV形式で出力するファイルパス
+### 馬券シミュレーション
+
+機械学習モデルの予測を使って、過去のレース結果で馬券購入をシミュレーションできます。
+
+#### Webインターフェース
+
+ブラウザで `http://localhost:5000/simulation/` にアクセスして、Webインターフェースでシミュレーションを実行できます。
+
+**主な機能:**
+- 期間指定によるシミュレーション（開始日〜終了日）
+- 複数の馬券種に対応（単勝、複勝、馬連、馬単、ワイド、3連複、3連単）
+- 購入戦略の設定（購入金額、予想確率上位N点、最小購入確率など）
+- 結果表示
+  - 回収率、的中率、総損益
+  - 時系列グラフ（累積収支、回収率推移）
+  - 馬券種別集計
+  - 購入馬券一覧
+- シミュレーション履歴の保存・閲覧
+
+#### CLIスクリプト
+
+コマンドラインからシミュレーションを実行:
+
+**基本的な使い方:**
+```bash
+# 2024年1月1日〜12月31日のシミュレーション（単勝・複勝）
+python scripts/run_betting_simulation.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31
+```
+
+**全馬券種でシミュレーション:**
+```bash
+python scripts/run_betting_simulation.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31 \
+  --bet-types win place quinella exacta wide trio trifecta \
+  --bet-amount 100 \
+  --top-n 5 \
+  --name "2024年全馬券種シミュレーション"
+```
+
+**予測を使わないシミュレーション（均等確率）:**
+```bash
+python scripts/run_betting_simulation.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31 \
+  --no-predictions
+```
+
+**オプション:**
+- `--start-date`: 開始日 (YYYY-MM-DD、必須)
+- `--end-date`: 終了日 (YYYY-MM-DD、必須)
+- `--name`: シミュレーション名（デフォルト: 自動生成）
+- `--bet-types`: 馬券種のリスト（デフォルト: win place）
+  - 選択肢: `win`（単勝）, `place`（複勝）, `quinella`（馬連）, `exacta`（馬単）, `wide`（ワイド）, `trio`（3連複）, `trifecta`（3連単）
+- `--bet-amount`: 1点あたりの購入金額（デフォルト: 100円）
+- `--top-n`: 予想確率上位N点を購入（デフォルト: 3）
+- `--min-probability`: 最小購入確率閾値（デフォルト: 0.05）
+- `--max-bets-per-race`: 1レースあたりの最大購入点数（デフォルト: 10）
+- `--no-predictions`: 予測データを使わず均等確率でシミュレーション
+- `--no-save`: 結果をデータベースに保存しない
+
+**結果の確認:**
+
+CLIで結果が表示され、データベースに保存された場合はWebインターフェース (`http://localhost:5000/simulation/history`) で詳細を確認できます。
 
 ### Webアプリケーションの起動
 
@@ -224,7 +395,8 @@ python -m src.web.app
 keiba-app/
 ├── config/                         # 設定ファイル
 │   ├── settings.py                # 環境別設定（Development, Production, Testing）
-│   └── logging_config.py          # ロギング設定
+│   ├── logging_config.py          # ロギング設定
+│   └── retraining_config.json    # モデル再訓練設定
 ├── src/
 │   ├── scrapers/                  # スクレイピングモジュール
 │   │   ├── netkeiba_scraper.py   # Netkeibaスクレイパー（メイン）
@@ -236,6 +408,7 @@ keiba-app/
 │   │   ├── feature_engineering.py # 特徴量エンジニアリング
 │   │   ├── preprocessing.py       # データ前処理
 │   │   ├── evaluation.py          # モデル評価
+│   │   ├── betting_simulator.py   # 馬券シミュレーター
 │   │   └── models/               # MLモデル実装
 │   │       ├── base_model.py     # ベースモデルクラス
 │   │       ├── random_forest.py  # RandomForestモデル
@@ -248,10 +421,13 @@ keiba-app/
 │   │   │   ├── api.py           # REST APIエンドポイント
 │   │   │   ├── predictions.py   # 予想表示ルート
 │   │   │   ├── entities.py      # エンティティページルート
-│   │   │   └── search.py        # 検索機能ルート
+│   │   │   ├── search.py        # 検索機能ルート
+│   │   │   └── simulation.py    # 馬券シミュレーションルート
 │   │   └── templates/            # Jinja2テンプレート
+│   │       └── simulation/       # シミュレーションテンプレート
 │   └── utils/                     # ユーティリティ
-│       └── logger.py             # アプリケーションロガー
+│       ├── logger.py             # アプリケーションロガー
+│       └── notification.py       # 通知機能（Email/Slack）
 ├── scripts/                       # 実行スクリプト
 │   ├── init_db.py                # データベース初期化
 │   ├── scrape_data.py            # レースデータスクレイピング
@@ -259,7 +435,11 @@ keiba-app/
 │   ├── scrape_historical_data.py  # 過去データ一括スクレイピング
 │   ├── extract_features.py       # 特徴量抽出・前処理
 │   ├── train_model.py            # モデル訓練
-│   └── generate_predictions.py   # 予想生成
+│   ├── model_retraining_scheduler.py # モデル定期再訓練スケジューラー
+│   ├── generate_predictions.py   # 予想生成（既存レース用）
+│   ├── predict_upcoming_races.py # 今後のレース自動予想（スクレイピング+予想）
+│   ├── run_betting_simulation.py # 馬券シミュレーション実行
+│   └── scheduler.py              # 定期実行スケジューラー
 ├── data/                          # データディレクトリ
 │   ├── models/                   # 訓練済みモデル（.pkl）
 │   ├── processed/                # 処理済み特徴量CSV
@@ -268,6 +448,7 @@ keiba-app/
 │   ├── test_scrapers/            # スクレイパーテスト
 │   ├── test_models/              # データベースモデルテスト
 │   └── test_ml/                  # 機械学習テスト
+│       └── test_betting_simulator.py # 馬券シミュレータテスト
 ├── run.py                         # アプリケーションエントリーポイント
 ├── .env.example                   # 環境変数テンプレート
 ├── requirements.txt               # Pythonパッケージ依存関係
@@ -364,16 +545,17 @@ flake8
 - [x] パフォーマンス最適化とキャッシング
 - [x] 検索機能（馬名、騎手名、調教師名）
 - [x] 統計・分析ページ（予想精度、モデル別統計）
+- [x] 馬券シミュレーション機能（全7馬券種対応、Web/CLI両対応）
 
 ### 今後の予定 📋
 - [ ] デプロイメント（Heroku/AWS/Railway）
-- [ ] バックグラウンドタスク自動実行（Celery/APScheduler）
-  - [ ] 定期的なスクレイピング
-  - [ ] 自動予想生成
-  - [ ] モデルの定期再訓練
+- [x] バックグラウンドタスク自動実行（schedule）
+  - [x] 定期的なスクレイピング
+  - [x] 自動予想生成
+  - [x] モデルの定期再訓練
 - [ ] ユーザー認証システム
 - [ ] お気に入り機能
-- [ ] 馬券シミュレーション機能
+- [x] 馬券シミュレーション機能
 - [ ] モバイルアプリ化（React Native/Flutter）
 
 ### 実装済み機能の詳細

@@ -2,6 +2,7 @@
 Flask application factory.
 """
 from flask import Flask, render_template
+from flask_migrate import Migrate
 from config.settings import get_config
 from config.logging_config import setup_logging
 from src.data.models import db
@@ -9,6 +10,7 @@ from src.web.cache import init_cache
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
+migrate = Migrate()
 
 
 def create_app(config_name=None):
@@ -37,6 +39,9 @@ def create_app(config_name=None):
     # Initialize database
     db.init_app(app)
 
+    # Initialize Flask-Migrate
+    migrate.init_app(app, db)
+
     # Initialize cache
     init_cache(app)
 
@@ -62,12 +67,14 @@ def register_blueprints(app):
     from src.web.routes.entities import entities_bp
     from src.web.routes.search import search_bp
     from src.web.routes.api import api_bp
+    from src.web.routes.simulation import simulation_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(predictions_bp)
     app.register_blueprint(entities_bp)
     app.register_blueprint(search_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(simulation_bp)
 
     logger.info("Blueprints registered")
 

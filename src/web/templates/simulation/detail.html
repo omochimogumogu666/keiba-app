@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}シミュレーション詳細{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ run.name or 'シミュレーション #' + run.id|string }}</h1>
+        <a href="/simulation/history" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> 履歴に戻る
+        </a>
+    </div>
+
+    <!-- 概要 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6 class="text-muted">期間</h6>
+                            <p>{{ run.start_date.strftime('%Y-%m-%d') }} 〜 {{ run.end_date.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">対象レース数</h6>
+                            <p>{{ run.total_races }}レース</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">購入点数</h6>
+                            <p>{{ run.total_bets }}点</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">実行日時</h6>
+                            <p>{{ run.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成績サマリー -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">回収率</h6>
+                    <h2 class="card-title mb-0 {% if run.recovery_rate >= 100 %}text-success{% else %}text-danger{% endif %}">
+                        {{ run.recovery_rate|round(1) }}%
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">的中率</h6>
+                    <h2 class="card-title mb-0">{{ (run.hit_rate * 100)|round(1) }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">総損益</h6>
+                    <h2 class="card-title mb-0 {% if run.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ '{:,}'.format(run.total_profit) }}円
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">総投資額</h6>
+                    <h2 class="card-title mb-0">{{ '{:,}'.format(run.total_investment) }}円</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 戦略設定 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">購入戦略</h5>
+        </div>
+        <div class="card-body">
+            {% set strategy = run.strategy_config %}
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>対象馬券種</h6>
+                    <p>
+                        {% set bet_type_names = {
+                            'win': '単勝', 'place': '複勝', 'quinella': '馬連',
+                            'exacta': '馬単', 'wide': 'ワイド', 'trio': '3連複', 'trifecta': '3連単'
+                        } %}
+                        {% for bet_type in strategy.bet_types %}
+                            <span class="badge bg-secondary">{{ bet_type_names.get(bet_type, bet_type) }}</span>
+                        {% endfor %}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h6>購入設定</h6>
+                    <ul class="small mb-0">
+                        <li>1点あたり購入金額: {{ strategy.bet_amount }}円</li>
+                        <li>予想確率上位: {{ strategy.top_n }}点</li>
+                        <li>最小購入確率: {{ strategy.min_probability }}</li>
+                        <li>1レースあたり最大購入点数: {{ strategy.max_bets_per_race }}点</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 馬券種別統計 -->
+    {% if run.stats_by_bet_type %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">馬券種別集計</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>馬券種</th>
+                            <th class="text-end">購入数</th>
+                            <th class="text-end">的中数</th>
+                            <th class="text-end">的中率</th>
+                            <th class="text-end">投資額</th>
+                            <th class="text-end">払戻額</th>
+                            <th class="text-end">損益</th>
+                            <th class="text-end">回収率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set bet_type_names = {
+                            'win': '単勝', 'place': '複勝', 'quinella': '馬連',
+                            'exacta': '馬単', 'wide': 'ワイド', 'trio': '3連複', 'trifecta': '3連単'
+                        } %}
+                        {% for bet_type, stats in run.stats_by_bet_type.items() %}
+                        <tr>
+                            <td>{{ bet_type_names.get(bet_type, bet_type) }}</td>
+                            <td class="text-end">{{ stats.count }}</td>
+                            <td class="text-end">{{ stats.hit_count }}</td>
+                            <td class="text-end">{{ (stats.hit_rate * 100)|round(1) }}%</td>
+                            <td class="text-end">{{ '{:,}'.format(stats.investment) }}円</td>
+                            <td class="text-end">{{ '{:,}'.format(stats.payout) }}円</td>
+                            <td class="text-end {% if stats.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ '{:,}'.format(stats.profit) }}円
+                            </td>
+                            <td class="text-end">{{ stats.recovery_rate|round(1) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 購入馬券一覧 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">購入馬券一覧（全{{ bets|length }}点）</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>競馬場</th>
+                            <th>R</th>
+                            <th>レース名</th>
+                            <th>馬券種</th>
+                            <th>組合せ</th>
+                            <th class="text-end">購入額</th>
+                            <th class="text-end">予測確率</th>
+                            <th class="text-center">結果</th>
+                            <th class="text-end">払戻額</th>
+                            <th class="text-end">損益</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bet in bets %}
+                        {% set race = bet.race %}
+                        <tr>
+                            <td>{{ race.race_date.strftime('%m/%d') if race else '-' }}</td>
+                            <td>{{ race.track.name if race and race.track else '-' }}</td>
+                            <td>{{ race.race_number if race else '-' }}</td>
+                            <td>
+                                {% if race %}
+                                <a href="/races/{{ race.id }}">{{ race.race_name or '-' }}</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set bet_type_names = {
+                                    'win': '単勝', 'place': '複勝', 'quinella': '馬連',
+                                    'exacta': '馬単', 'wide': 'ワイド', 'trio': '3連複', 'trifecta': '3連単'
+                                } %}
+                                {{ bet_type_names.get(bet.bet_type, bet.bet_type) }}
+                            </td>
+                            <td>{{ bet.combination }}</td>
+                            <td class="text-end">{{ '{:,}'.format(bet.amount) }}円</td>
+                            <td class="text-end">{{ (bet.predicted_probability * 100)|round(1) if bet.predicted_probability else '-' }}%</td>
+                            <td class="text-center">
+                                {% if bet.is_hit %}
+                                <span class="badge bg-success">的中</span>
+                                {% else %}
+                                <span class="badge bg-secondary">不中</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ '{:,}'.format(bet.payout_amount) }}円</td>
+                            <td class="text-end {% if bet.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ '{:,}'.format(bet.profit) }}円
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

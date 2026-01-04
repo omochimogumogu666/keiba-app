@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}シミュレーション履歴{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>シミュレーション履歴</h1>
+        <a href="/simulation/" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 新規シミュレーション
+        </a>
+    </div>
+
+    {% if runs %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>シミュレーション名</th>
+                    <th>期間</th>
+                    <th class="text-end">レース数</th>
+                    <th class="text-end">購入数</th>
+                    <th class="text-end">的中率</th>
+                    <th class="text-end">回収率</th>
+                    <th class="text-end">損益</th>
+                    <th>実行日時</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr>
+                    <td>
+                        <a href="/simulation/run/{{ run.id }}">{{ run.name or 'シミュレーション #' + run.id|string }}</a>
+                    </td>
+                    <td>{{ run.start_date.strftime('%Y-%m-%d') }} 〜 {{ run.end_date.strftime('%Y-%m-%d') }}</td>
+                    <td class="text-end">{{ run.total_races }}</td>
+                    <td class="text-end">{{ run.total_bets }}</td>
+                    <td class="text-end">{{ (run.hit_rate * 100)|round(1) }}%</td>
+                    <td class="text-end">
+                        <span class="badge {% if run.recovery_rate >= 100 %}bg-success{% elif run.recovery_rate >= 80 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ run.recovery_rate|round(1) }}%
+                        </span>
+                    </td>
+                    <td class="text-end {% if run.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ '{:,}'.format(run.total_profit) }}円
+                    </td>
+                    <td>{{ run.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRun({{ run.id }})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> シミュレーション履歴がありません。
+        <a href="/simulation/">新規シミュレーションを実行</a>してください。
+    </div>
+    {% endif %}
+</div>
+
+<script>
+async function deleteRun(runId) {
+    if (!confirm('このシミュレーション結果を削除しますか?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/simulation/api/runs/${runId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('削除に失敗しました');
+        }
+
+        location.reload();
+    } catch (error) {
+        alert(`エラー: ${error.message}`);
+    }
+}
+</script>
+{% endblock %}

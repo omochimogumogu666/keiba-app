@@ -93,6 +93,7 @@ class Race(db.Model):
     netkeiba_race_id = db.Column(db.String(20), unique=True, index=True, nullable=False)
     track_id = db.Column(db.Integer, db.ForeignKey('tracks.id'), nullable=False)
     race_date = db.Column(db.Date, nullable=False, index=True)
+    post_time = db.Column(db.Time)  # 発走時刻
     race_number = db.Column(db.Integer, nullable=False)  # 1R, 2R, etc.
     race_name = db.Column(db.String(200))  # レース名
     distance = db.Column(db.Integer)  # meters - nullable because calendar doesn't have this info
@@ -133,6 +134,8 @@ class RaceEntry(db.Model):
     horse_weight = db.Column(db.Integer)  # 馬体重 (kg)
     horse_weight_change = db.Column(db.Integer)  # 馬体重増減
     morning_odds = db.Column(db.Float)  # 朝オッズ
+    latest_odds = db.Column(db.Float)  # 最新オッズ
+    odds_updated_at = db.Column(db.DateTime)  # オッズ更新時刻
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -206,3 +209,55 @@ class Prediction(db.Model):
 
     def __repr__(self):
         return f'<Prediction race={self.race_id} horse={self.horse_id} pos={self.predicted_position}>'
+
+
+class SimulationRun(db.Model):
+    """Simulation run model for tracking betting simulations."""
+    __tablename__ = 'simulation_runs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200))  # シミュレーション名
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    strategy_config = db.Column(db.JSON, nullable=False)  # BettingStrategyの設定
+    total_races = db.Column(db.Integer, default=0)
+    total_bets = db.Column(db.Integer, default=0)
+    total_investment = db.Column(db.Integer, default=0)  # 総投資額
+    total_payout = db.Column(db.Integer, default=0)  # 総払戻金
+    total_profit = db.Column(db.Integer, default=0)  # 総損益
+    hit_count = db.Column(db.Integer, default=0)  # 的中数
+    hit_rate = db.Column(db.Float, default=0.0)  # 的中率
+    recovery_rate = db.Column(db.Float, default=0.0)  # 回収率
+    stats_by_bet_type = db.Column(db.JSON)  # 馬券種別ごとの統計
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    simulation_bets = db.relationship('SimulationBet', back_populates='simulation_run', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<SimulationRun {self.id} {self.name}>'
+
+
+class SimulationBet(db.Model):
+    """Individual bet in a simulation run."""
+    __tablename__ = 'simulation_bets'
+
+    id = db.Column(db.Integer, primary_key=True)
+    simulation_run_id = db.Column(db.Integer, db.ForeignKey('simulation_runs.id'), nullable=False, index=True)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False, index=True)
+    bet_type = db.Column(db.String(20), nullable=False)  # win, place, quinella, etc.
+    combination = db.Column(db.String(50), nullable=False)  # '1', '1-2', '1-2-3'
+    horse_numbers = db.Column(db.JSON, nullable=False)  # [1, 2, 3]
+    amount = db.Column(db.Integer, nullable=False)  # 購入金額
+    predicted_probability = db.Column(db.Float)  # 予測確率
+    is_hit = db.Column(db.Boolean, default=False)  # 的中したか
+    payout_amount = db.Column(db.Integer, default=0)  # 払戻金額
+    profit = db.Column(db.Integer, default=0)  # 損益
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    simulation_run = db.relationship('SimulationRun', back_populates='simulation_bets')
+    race = db.relationship('Race')
+
+    def __repr__(self):
+        return f'<SimulationBet run={self.simulation_run_id} race={self.race_id} {self.bet_type}>'

@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+
+{% block title %}馬券シミュレーション{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">馬券シミュレーション</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- シミュレーション設定フォーム -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">シミュレーション設定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="simulationForm">
+                        <!-- 基本設定 -->
+                        <div class="mb-3">
+                            <label for="simulationName" class="form-label">シミュレーション名</label>
+                            <input type="text" class="form-control" id="simulationName" name="name" placeholder="例: 2024年シミュレーション">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">開始日 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="startDate" name="start_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label">終了日 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="endDate" name="end_date" required>
+                            </div>
+                        </div>
+
+                        <!-- 馬券種設定 -->
+                        <div class="mb-3">
+                            <label class="form-label">対象馬券種 <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="win" id="betTypeWin" name="bet_types" checked>
+                                        <label class="form-check-label" for="betTypeWin">単勝</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="place" id="betTypePlace" name="bet_types" checked>
+                                        <label class="form-check-label" for="betTypePlace">複勝</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="quinella" id="betTypeQuinella" name="bet_types">
+                                        <label class="form-check-label" for="betTypeQuinella">馬連</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="exacta" id="betTypeExacta" name="bet_types">
+                                        <label class="form-check-label" for="betTypeExacta">馬単</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="wide" id="betTypeWide" name="bet_types">
+                                        <label class="form-check-label" for="betTypeWide">ワイド</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="trio" id="betTypeTrio" name="bet_types">
+                                        <label class="form-check-label" for="betTypeTrio">3連複</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="trifecta" id="betTypeTrifecta" name="bet_types">
+                                        <label class="form-check-label" for="betTypeTrifecta">3連単</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 購入戦略設定 -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="betAmount" class="form-label">1点あたり購入金額（円）</label>
+                                <input type="number" class="form-control" id="betAmount" name="bet_amount" value="100" min="100" step="100">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="topN" class="form-label">予想確率上位N点</label>
+                                <input type="number" class="form-control" id="topN" name="top_n" value="3" min="1" max="10">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="minProbability" class="form-label">最小購入確率</label>
+                                <input type="number" class="form-control" id="minProbability" name="min_probability" value="0.05" min="0" max="1" step="0.01">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="maxBetsPerRace" class="form-label">1レースあたり最大購入点数</label>
+                                <input type="number" class="form-control" id="maxBetsPerRace" name="max_bets_per_race" value="10" min="1" max="50">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="usePredictions" name="use_predictions" checked>
+                                <label class="form-check-label" for="usePredictions">
+                                    予測データを使用する（オフの場合は均等確率）
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="runSimulationBtn">
+                                <i class="bi bi-play-circle"></i> シミュレーション実行
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- 説明 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">使い方</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="small">
+                        <li>シミュレーション期間を指定</li>
+                        <li>対象の馬券種を選択</li>
+                        <li>購入戦略を設定</li>
+                        <li>「シミュレーション実行」をクリック</li>
+                    </ol>
+                    <p class="small mb-0">
+                        <strong>注意:</strong> 期間が長いとシミュレーションに時間がかかります。
+                        まずは短い期間でお試しください。
+                    </p>
+                </div>
+            </div>
+
+            <!-- 履歴へのリンク -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">シミュレーション履歴</h5>
+                </div>
+                <div class="card-body">
+                    <a href="/simulation/history" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-clock-history"></i> 履歴を見る
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果表示エリア -->
+    <div id="resultArea" style="display: none;">
+        <hr class="my-5">
+        <h2 class="mb-4">シミュレーション結果</h2>
+
+        <!-- 概要 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">回収率</h6>
+                        <h3 class="card-title mb-0" id="resultRecoveryRate">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">的中率</h6>
+                        <h3 class="card-title mb-0" id="resultHitRate">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">総損益</h6>
+                        <h3 class="card-title mb-0" id="resultProfit">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">レース数</h6>
+                        <h3 class="card-title mb-0" id="resultRaces">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 時系列グラフ -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">累積収支推移</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 馬券種別集計 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">馬券種別集計</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm" id="betTypeStatsTable">
+                        <thead>
+                            <tr>
+                                <th>馬券種</th>
+                                <th class="text-end">購入数</th>
+                                <th class="text-end">的中数</th>
+                                <th class="text-end">的中率</th>
+                                <th class="text-end">投資額</th>
+                                <th class="text-end">払戻額</th>
+                                <th class="text-end">損益</th>
+                                <th class="text-end">回収率</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 詳細へのリンク -->
+        <div class="text-center">
+            <a href="#" id="viewDetailLink" class="btn btn-primary" style="display: none;">
+                <i class="bi bi-list-ul"></i> 詳細を見る
+            </a>
+        </div>
+    </div>
+
+    <!-- ローディング表示 -->
+    <div id="loadingArea" style="display: none;">
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">シミュレーション実行中...</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let profitChart = null;
+
+// フォーム送信
+document.getElementById('simulationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+
+    // 馬券種を収集
+    const betTypes = [];
+    formData.getAll('bet_types').forEach(type => {
+        if (type) betTypes.push(type);
+    });
+
+    if (betTypes.length === 0) {
+        alert('馬券種を1つ以上選択してください');
+        return;
+    }
+
+    // リクエストボディ構築
+    const requestBody = {
+        name: formData.get('name') || `シミュレーション ${new Date().toLocaleString('ja-JP')}`,
+        start_date: formData.get('start_date'),
+        end_date: formData.get('end_date'),
+        strategy: {
+            bet_types: betTypes,
+            bet_amount: parseInt(formData.get('bet_amount')),
+            top_n: parseInt(formData.get('top_n')),
+            min_probability: parseFloat(formData.get('min_probability')),
+            max_bets_per_race: parseInt(formData.get('max_bets_per_race'))
+        },
+        use_predictions: formData.get('use_predictions') === 'on',
+        save_to_db: true
+    };
+
+    // UI更新
+    document.getElementById('loadingArea').style.display = 'block';
+    document.getElementById('resultArea').style.display = 'none';
+    document.getElementById('runSimulationBtn').disabled = true;
+
+    try {
+        const response = await fetch('/simulation/api/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'シミュレーション実行に失敗しました');
+        }
+
+        const data = await response.json();
+        displayResult(data.result, data.simulation_run_id);
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert(`エラー: ${error.message}`);
+    } finally {
+        document.getElementById('loadingArea').style.display = 'none';
+        document.getElementById('runSimulationBtn').disabled = false;
+    }
+});
+
+function displayResult(result, runId) {
+    // 概要表示
+    document.getElementById('resultRecoveryRate').textContent = `${result.recovery_rate.toFixed(1)}%`;
+    document.getElementById('resultHitRate').textContent = `${(result.hit_rate * 100).toFixed(1)}%`;
+    document.getElementById('resultProfit').textContent = formatCurrency(result.total_profit);
+    document.getElementById('resultRaces').textContent = result.total_races;
+
+    // 色設定
+    const profitElement = document.getElementById('resultProfit');
+    if (result.total_profit > 0) {
+        profitElement.classList.add('text-success');
+        profitElement.classList.remove('text-danger');
+    } else if (result.total_profit < 0) {
+        profitElement.classList.add('text-danger');
+        profitElement.classList.remove('text-success');
+    }
+
+    // グラフ表示
+    displayProfitChart(result.cumulative_profit, result.cumulative_recovery_rate);
+
+    // 馬券種別統計
+    displayBetTypeStats(result.stats_by_bet_type);
+
+    // 詳細リンク
+    if (runId) {
+        const link = document.getElementById('viewDetailLink');
+        link.href = `/simulation/run/${runId}`;
+        link.style.display = 'inline-block';
+    }
+
+    // 結果エリア表示
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+function displayProfitChart(cumulativeProfit, cumulativeRecoveryRate) {
+    const ctx = document.getElementById('profitChart').getContext('2d');
+
+    if (profitChart) {
+        profitChart.destroy();
+    }
+
+    const dates = cumulativeProfit.map(item => item[0]);
+    const profits = cumulativeProfit.map(item => item[1]);
+    const recoveryRates = cumulativeRecoveryRate.map(item => item[1]);
+
+    profitChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: '累積損益（円）',
+                data: profits,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                yAxisID: 'y',
+            }, {
+                label: '回収率（%）',
+                data: recoveryRates,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                yAxisID: 'y1',
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: '累積損益（円）'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: '回収率（%）'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+}
+
+function displayBetTypeStats(stats) {
+    const tbody = document.querySelector('#betTypeStatsTable tbody');
+    tbody.innerHTML = '';
+
+    const betTypeNames = {
+        'win': '単勝',
+        'place': '複勝',
+        'quinella': '馬連',
+        'exacta': '馬単',
+        'wide': 'ワイド',
+        'trio': '3連複',
+        'trifecta': '3連単'
+    };
+
+    for (const [betType, data] of Object.entries(stats)) {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${betTypeNames[betType] || betType}</td>
+            <td class="text-end">${data.count.toLocaleString()}</td>
+            <td class="text-end">${data.hit_count.toLocaleString()}</td>
+            <td class="text-end">${(data.hit_rate * 100).toFixed(1)}%</td>
+            <td class="text-end">${formatCurrency(data.investment)}</td>
+            <td class="text-end">${formatCurrency(data.payout)}</td>
+            <td class="text-end ${data.profit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(data.profit)}</td>
+            <td class="text-end">${data.recovery_rate.toFixed(1)}%</td>
+        `;
+    }
+}
+
+function formatCurrency(amount) {
+    return amount.toLocaleString('ja-JP', { style: 'currency', currency: 'JPY' });
+}
+</script>
+{% endblock %}
