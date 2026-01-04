@@ -13,6 +13,7 @@
       "Bash(python -m pytest:*)",
       "Bash(python scripts/debug_race_card_html.py:*)",
       "Bash(python:*)",
+      "Bash(pytest:*)",
       "Bash(dir:*)"
     ],
     "deny": [

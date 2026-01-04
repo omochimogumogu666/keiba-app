@@ -3,7 +3,7 @@ Tests for race result scraping and database saving.
 """
 import pytest
 from datetime import datetime
-from src.scrapers.jra_scraper import JRAScraper
+from src.scrapers.netkeiba_scraper import NetkeibaScraper
 from src.data.database import save_race_to_db, save_race_entries_to_db, save_race_results_to_db
 from src.data.models import Race, RaceEntry, RaceResult, Horse, Jockey, Trainer
 from src.web.app import create_app
@@ -25,7 +25,7 @@ def app():
 def sample_race_data():
     """Sample race data for testing."""
     return {
-        'jra_race_id': '2026010101011',
+        'netkeiba_race_id': '202601010101',
         'track': '中山',
         'race_date': datetime(2026, 1, 1),
         'race_number': 11,
@@ -42,11 +42,11 @@ def sample_entries():
     """Sample race entries for testing."""
     return [
         {
-            'jra_horse_id': 'H001',
+            'netkeiba_horse_id': 'H001',
             'horse_name': 'テストホース1',
-            'jra_jockey_id': 'J001',
+            'netkeiba_jockey_id': 'J001',
             'jockey_name': 'テスト騎手1',
-            'jra_trainer_id': 'T001',
+            'netkeiba_trainer_id': 'T001',
             'trainer_name': 'テスト調教師1',
             'post_position': 1,
             'horse_number': 1,
@@ -56,11 +56,11 @@ def sample_entries():
             'morning_odds': 5.5
         },
         {
-            'jra_horse_id': 'H002',
+            'netkeiba_horse_id': 'H002',
             'horse_name': 'テストホース2',
-            'jra_jockey_id': 'J002',
+            'netkeiba_jockey_id': 'J002',
             'jockey_name': 'テスト騎手2',
-            'jra_trainer_id': 'T002',
+            'netkeiba_trainer_id': 'T002',
             'trainer_name': 'テスト調教師2',
             'post_position': 2,
             'horse_number': 2,
@@ -109,7 +109,7 @@ class TestRaceResultSaving:
 
             assert race is not None
             assert race.id is not None
-            assert race.jra_race_id == sample_race_data['jra_race_id']
+            assert race.netkeiba_race_id == sample_race_data['netkeiba_race_id']
             assert race.race_name == sample_race_data['race_name']
             assert race.distance == sample_race_data['distance']
             assert race.status == 'upcoming'
@@ -128,8 +128,8 @@ class TestRaceResultSaving:
             assert entries[1].horse_number == 2
 
             # Check that horses were created
-            horse1 = Horse.query.filter_by(jra_horse_id='H001').first()
-            horse2 = Horse.query.filter_by(jra_horse_id='H002').first()
+            horse1 = Horse.query.filter_by(netkeiba_horse_id='H001').first()
+            horse2 = Horse.query.filter_by(netkeiba_horse_id='H002').first()
 
             assert horse1 is not None
             assert horse2 is not None
@@ -204,7 +204,7 @@ class TestRaceResultParsing:
 
     def test_scrape_race_result_structure(self):
         """Test that scrape_race_result returns expected structure."""
-        scraper = JRAScraper(delay=0)
+        scraper = NetkeibaScraper(delay=0)
 
         # Test with mock HTML (unit test)
         # For now, just verify method exists and has correct signature
@@ -213,7 +213,6 @@ class TestRaceResultParsing:
         params = list(sig.parameters.keys())
 
         assert 'race_id' in params
-        assert 'cname' in params
 
     def test_result_data_validation(self, sample_results):
         """Test that result data has required fields."""
@@ -237,7 +236,7 @@ class TestRaceResultScraping:
         """
         from datetime import timedelta
 
-        with JRAScraper(delay=3) as scraper:
+        with NetkeibaScraper(delay=3) as scraper:
             # Try to find races from past week
             for days_ago in range(1, 8):
                 target_date = datetime.now() - timedelta(days=days_ago)
@@ -246,15 +245,13 @@ class TestRaceResultScraping:
                 if races:
                     # Try first race
                     race = races[0]
-                    jra_race_id = race.get('jra_race_id')
-                    cname = race.get('cname')
+                    netkeiba_race_id = race.get('netkeiba_race_id')
 
-                    if cname:
-                        result = scraper.scrape_race_result(jra_race_id, cname=cname)
+                    if netkeiba_race_id:
+                        result = scraper.scrape_race_result(netkeiba_race_id)
 
                         if result:
                             # If we got a result, verify structure
-                            assert 'jra_race_id' in result
                             assert 'results' in result
 
                             if result['results']:
@@ -262,7 +259,7 @@ class TestRaceResultScraping:
                                 first_result = result['results'][0]
                                 assert 'finish_position' in first_result
                                 assert 'horse_number' in first_result
-                                print(f"✓ Successfully scraped result for race {jra_race_id}")
+                                print(f"✓ Successfully scraped result for race {netkeiba_race_id}")
                                 return  # Test passed
 
             # If we get here, no results were found

@@ -82,12 +82,12 @@ Thumbs.db
 *.tmp
 *.bak
 
-# Documentation
-RequirementsDefinition.md
-CLAUDE.md
+# Documentation (excluding project docs)
+# RequirementsDefinition.md
+# CLAUDE.md
 
-# Test Scripts (root level)
-test_*.py
-debug_*.py
-debug_*.html
+# Debug HTML files
+scripts/debug/*.html
+
+# Temporary files
 nul

@@ -12,7 +12,7 @@ class Horse(db.Model):
     __tablename__ = 'horses'
 
     id = db.Column(db.Integer, primary_key=True)
-    jra_horse_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    netkeiba_horse_id = db.Column(db.String(20), unique=True, index=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     birth_date = db.Column(db.Date)
     sex = db.Column(db.String(10))  # 牡, 牝, セン
@@ -37,7 +37,7 @@ class Jockey(db.Model):
     __tablename__ = 'jockeys'
 
     id = db.Column(db.Integer, primary_key=True)
-    jra_jockey_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    netkeiba_jockey_id = db.Column(db.String(20), unique=True, index=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     weight = db.Column(db.Float)  # kg
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -55,7 +55,7 @@ class Trainer(db.Model):
     __tablename__ = 'trainers'
 
     id = db.Column(db.Integer, primary_key=True)
-    jra_trainer_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    netkeiba_trainer_id = db.Column(db.String(20), unique=True, index=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     stable = db.Column(db.String(100))  # 所属厩舎
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -90,18 +90,23 @@ class Race(db.Model):
     __tablename__ = 'races'
 
     id = db.Column(db.Integer, primary_key=True)
-    jra_race_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    netkeiba_race_id = db.Column(db.String(20), unique=True, index=True, nullable=False)
     track_id = db.Column(db.Integer, db.ForeignKey('tracks.id'), nullable=False)
     race_date = db.Column(db.Date, nullable=False, index=True)
     race_number = db.Column(db.Integer, nullable=False)  # 1R, 2R, etc.
     race_name = db.Column(db.String(200))  # レース名
-    distance = db.Column(db.Integer, nullable=False)  # meters
-    surface = db.Column(db.String(20), nullable=False)  # turf, dirt
+    distance = db.Column(db.Integer)  # meters - nullable because calendar doesn't have this info
+    surface = db.Column(db.String(20), default='turf')  # turf, dirt - default to turf if unknown
     track_condition = db.Column(db.String(20))  # 良, 稍重, 重, 不良
     weather = db.Column(db.String(20))  # 晴, 曇, 雨, etc.
     race_class = db.Column(db.String(50))  # G1, G2, G3, OP, etc.
     prize_money = db.Column(db.Integer)  # 円
     status = db.Column(db.String(20), default='upcoming')  # upcoming, completed
+    kaisai_code = db.Column(db.String(10))  # netkeiba開催コード
+    meeting_number = db.Column(db.Integer)  # 回次
+    day_number = db.Column(db.Integer)  # 日目
+    course_type = db.Column(db.String(20))  # 右, 左
+    track_variant = db.Column(db.String(10))  # A, B, C, D
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -111,7 +116,7 @@ class Race(db.Model):
     predictions = db.relationship('Prediction', back_populates='race', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f'<Race {self.jra_race_id} {self.race_name}>'
+        return f'<Race {self.netkeiba_race_id} {self.race_name}>'
 
 
 class RaceEntry(db.Model):
@@ -160,6 +165,25 @@ class RaceResult(db.Model):
 
     def __repr__(self):
         return f'<RaceResult entry={self.race_entry_id} position={self.finish_position}>'
+
+
+class Payout(db.Model):
+    """Payout model for race bet returns."""
+    __tablename__ = 'payouts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False, index=True)
+    bet_type = db.Column(db.String(20), nullable=False)  # win, place, quinella, exacta, wide, trio, trifecta
+    combination = db.Column(db.String(50), nullable=False)  # '1' or '1-2' or '1-2-3'
+    payout = db.Column(db.Integer, nullable=False)  # 円
+    popularity = db.Column(db.Integer)  # 人気
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    race = db.relationship('Race', backref='payouts')
+
+    def __repr__(self):
+        return f'<Payout race={self.race_id} {self.bet_type} {self.combination}>'
 
 
 class Prediction(db.Model):

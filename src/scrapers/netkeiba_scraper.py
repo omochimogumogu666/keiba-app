@@ -346,18 +346,31 @@ class NetkeibaScraper:
     def _parse_race_card_data(self, soup: BeautifulSoup, race_id: str) -> Dict:
         """Parse race card HTML into structured data."""
 
-        # Extract race title and metadata
-        race_title_elem = soup.find('div', class_='RaceData01')
+        # Extract race name from h1 tag with class RaceName
         race_name = None
+        race_name_elem = soup.find('h1', class_='RaceName')
+        if race_name_elem:
+            race_name = self._clean_text(race_name_elem.get_text())
+        else:
+            # Fallback: try RaceList_Item02 and extract just the first line
+            race_list_elem = soup.find('div', class_='RaceList_Item02')
+            if race_list_elem:
+                # Get first non-empty line
+                lines = [line.strip() for line in race_list_elem.get_text().split('\n') if line.strip()]
+                if lines:
+                    race_name = lines[0]
+
+        # Extract race metadata from RaceData01
+        race_title_elem = soup.find('div', class_='RaceData01')
         distance = None
         surface = None
-        race_class = None
+        weather = None
+        track_condition = None
 
         if race_title_elem:
             title_text = self._clean_text(race_title_elem.get_text())
-            race_name = title_text
 
-            # Extract distance (e.g., "芝1600m")
+            # Extract distance (e.g., "芝1600m" or "ダ1200m")
             distance_match = re.search(r'[芝ダ](\d+)m', title_text)
             if distance_match:
                 distance = int(distance_match.group(1))
@@ -368,45 +381,45 @@ class NetkeibaScraper:
             elif 'ダ' in title_text or 'ダート' in title_text:
                 surface = 'dirt'
 
-            # Extract race class (G1, G2, G3, etc.)
-            if 'G1' in title_text or 'GⅠ' in title_text:
-                race_class = 'G1'
-            elif 'G2' in title_text or 'GⅡ' in title_text:
-                race_class = 'G2'
-            elif 'G3' in title_text or 'GⅢ' in title_text:
-                race_class = 'G3'
-            elif 'OP' in title_text or 'オープン' in title_text:
-                race_class = 'OP'
-            elif 'L' in title_text or 'リステッド' in title_text:
-                race_class = 'Listed'
+            # Extract weather from text (e.g., "天候:晴")
+            weather_match = re.search(r'天候[:：]\s*([晴曇雨小雨]+)', title_text)
+            if weather_match:
+                weather = weather_match.group(1)
 
-        # Extract race conditions (weather, track condition)
+            # Extract track condition from text (e.g., "馬場:良")
+            track_match = re.search(r'馬場[:：]\s*([良稍重不良]+)', title_text)
+            if track_match:
+                track_condition = track_match.group(1)
+
+        # Extract race class from RaceData02
         race_data02 = soup.find('div', class_='RaceData02')
-        weather = None
-        track_condition = None
+        race_class = None
 
         if race_data02:
             data_text = self._clean_text(race_data02.get_text())
 
-            # Weather
-            if '晴' in data_text:
-                weather = '晴'
-            elif '曇' in data_text:
-                weather = '曇'
-            elif '雨' in data_text:
-                weather = '雨'
-            elif '小雨' in data_text:
-                weather = '小雨'
-
-            # Track condition
-            if '良' in data_text:
-                track_condition = '良'
-            elif '稍重' in data_text or 'や' in data_text:
-                track_condition = '稍重'
-            elif '重' in data_text:
-                track_condition = '重'
-            elif '不良' in data_text:
-                track_condition = '不良'
+            # Extract race class (G1, G2, G3, etc.)
+            # Note: Use both half-width (3) and full-width (３) numbers
+            if 'G1' in data_text or 'GⅠ' in data_text or 'GI' in data_text:
+                race_class = 'G1'
+            elif 'G2' in data_text or 'GⅡ' in data_text or 'GII' in data_text:
+                race_class = 'G2'
+            elif 'G3' in data_text or 'GⅢ' in data_text or 'GIII' in data_text:
+                race_class = 'G3'
+            elif 'OP' in data_text or 'オープン' in data_text:
+                race_class = 'OP'
+            elif 'L' in data_text or 'リステッド' in data_text:
+                race_class = 'Listed'
+            elif '3勝クラス' in data_text or '３勝クラス' in data_text:
+                race_class = '3勝クラス'
+            elif '2勝クラス' in data_text or '２勝クラス' in data_text:
+                race_class = '2勝クラス'
+            elif '1勝クラス' in data_text or '１勝クラス' in data_text:
+                race_class = '1勝クラス'
+            elif '未勝利' in data_text:
+                race_class = '未勝利'
+            elif '新馬' in data_text:
+                race_class = '新馬'
 
         # Parse entries table
         entries = []
@@ -572,8 +585,8 @@ class NetkeibaScraper:
         results = []
         payouts = {}
 
-        # Find result table
-        result_table = soup.find('table', class_=re.compile(r'Result_Table|ResultRaceShutuba'))
+        # Find result table - looking for table with RaceTable01 class
+        result_table = soup.find('table', class_=re.compile(r'RaceTable01'))
 
         if not result_table:
             logger.warning(f"No result table found for race_id={race_id}")
@@ -611,36 +624,35 @@ class NetkeibaScraper:
 
         result = {}
 
-        # Finish position - class 'Chakujun' or 'Result'
-        chakujun_td = row.find('td', class_=re.compile(r'(Chakujun|Result)'))
-        if chakujun_td:
-            position_text = self._clean_text(chakujun_td.get_text())
+        # Finish position - class 'Result_Num'
+        result_num_td = row.find('td', class_='Result_Num')
+        if result_num_td:
+            position_text = self._clean_text(result_num_td.get_text())
             try:
                 result['finish_position'] = int(position_text)
             except ValueError:
                 result['finish_position'] = None
 
-        # Horse number - with numbered class like Umaban1
-        umaban_td = row.find('td', class_=re.compile(r'Umaban\d*'))
-        if umaban_td:
-            umaban_text = self._clean_text(umaban_td.get_text())
-            try:
-                result['horse_number'] = int(umaban_text)
-            except ValueError:
-                result['horse_number'] = None
+        # Horse number - find td with class containing 'Num' and 'Txt_C'
+        tds = row.find_all('td')
+        for td in tds:
+            classes = td.get('class', [])
+            if 'Num' in classes and 'Txt_C' in classes:
+                horse_num_text = self._clean_text(td.get_text())
+                try:
+                    result['horse_number'] = int(horse_num_text)
+                except ValueError:
+                    pass
+                break
 
-        # Time
-        time_td = row.find('td', class_='Time')
-        if time_td:
-            time_text = self._clean_text(time_td.get_text())
-            result['finish_time'] = self._parse_time_to_seconds(time_text)
+        # Time - class 'Time'
+        time_tds = row.find_all('td', class_='Time')
+        if time_tds and len(time_tds) > 0:
+            time_text = self._clean_text(time_tds[0].get_text())
+            if time_text:  # Only parse if not empty
+                result['finish_time'] = self._parse_time_to_seconds(time_text)
 
-        # Margin (着差)
-        sa_td = row.find('td', class_='Sa')
-        if sa_td:
-            result['margin'] = self._clean_text(sa_td.get_text())
-
-        # Final odds
+        # Final odds - class 'Odds'
         odds_td = row.find('td', class_='Odds')
         if odds_td:
             odds_text = self._clean_text(odds_td.get_text())
@@ -649,22 +661,30 @@ class NetkeibaScraper:
             except ValueError:
                 result['final_odds'] = None
 
-        # Popularity
-        ninki_td = row.find('td', class_='Ninki')
-        if ninki_td:
-            ninki_text = self._clean_text(ninki_td.get_text())
-            try:
-                result['popularity'] = int(ninki_text)
-            except ValueError:
-                result['popularity'] = None
+        # Popularity - usually in td with BgYellow class
+        for td in tds:
+            classes = td.get('class', [])
+            if 'BgYellow' in classes:
+                ninki_text = self._clean_text(td.get_text())
+                try:
+                    result['popularity'] = int(ninki_text)
+                except ValueError:
+                    pass
+                break
 
-        # Running positions (通過順位)
+        # Margin (着差) - may be in a specific column, try to find it
+        margin_td = row.find('td', class_='Distance')
+        if margin_td:
+            result['margin'] = self._clean_text(margin_td.get_text())
+
+        # Running positions (通過順位) - class 'PassingRank'
         passing_td = row.find('td', class_='PassingRank')
         if passing_td:
             passing_text = self._clean_text(passing_td.get_text())
             # Format: "11-11-11-11"
-            positions = [int(p) for p in passing_text.split('-') if p.strip().isdigit()]
-            result['running_positions'] = positions if positions else None
+            if passing_text and '-' in passing_text:
+                positions = [int(p) for p in passing_text.split('-') if p.strip().isdigit()]
+                result['running_positions'] = positions if positions else None
 
         return result if result else None
 

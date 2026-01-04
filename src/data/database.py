@@ -125,12 +125,12 @@ def get_or_create_track(name, **kwargs):
     return track
 
 
-def get_or_create_horse(jra_horse_id, name, **kwargs):
+def get_or_create_horse(netkeiba_horse_id, name=None, **kwargs):
     """
-    Get or create a horse by JRA ID.
+    Get or create a horse by netkeiba ID.
 
     Args:
-        jra_horse_id: JRA horse ID
+        netkeiba_horse_id: Netkeiba horse ID (required)
         name: Horse name
         **kwargs: Additional horse attributes
 
@@ -139,21 +139,26 @@ def get_or_create_horse(jra_horse_id, name, **kwargs):
     """
     from src.data.models import Horse
 
-    horse = Horse.query.filter_by(jra_horse_id=jra_horse_id).first()
+    horse = Horse.query.filter_by(netkeiba_horse_id=netkeiba_horse_id).first()
+
     if not horse:
-        horse = Horse(jra_horse_id=jra_horse_id, name=name, **kwargs)
+        horse = Horse(
+            netkeiba_horse_id=netkeiba_horse_id,
+            name=name,
+            **kwargs
+        )
         db.session.add(horse)
         db.session.commit()
-        logger.info(f"Created new horse: {name} ({jra_horse_id})")
+        logger.info(f"Created new horse: {name} (netkeiba:{netkeiba_horse_id})")
     return horse
 
 
-def get_or_create_jockey(jra_jockey_id, name):
+def get_or_create_jockey(netkeiba_jockey_id, name=None):
     """
-    Get or create a jockey by JRA ID.
+    Get or create a jockey by netkeiba ID.
 
     Args:
-        jra_jockey_id: JRA jockey ID
+        netkeiba_jockey_id: Netkeiba jockey ID (required)
         name: Jockey name
 
     Returns:
@@ -161,21 +166,25 @@ def get_or_create_jockey(jra_jockey_id, name):
     """
     from src.data.models import Jockey
 
-    jockey = Jockey.query.filter_by(jra_jockey_id=jra_jockey_id).first()
+    jockey = Jockey.query.filter_by(netkeiba_jockey_id=netkeiba_jockey_id).first()
+
     if not jockey:
-        jockey = Jockey(jra_jockey_id=jra_jockey_id, name=name)
+        jockey = Jockey(
+            netkeiba_jockey_id=netkeiba_jockey_id,
+            name=name
+        )
         db.session.add(jockey)
         db.session.commit()
-        logger.info(f"Created new jockey: {name} ({jra_jockey_id})")
+        logger.info(f"Created new jockey: {name} (netkeiba:{netkeiba_jockey_id})")
     return jockey
 
 
-def get_or_create_trainer(jra_trainer_id, name, **kwargs):
+def get_or_create_trainer(netkeiba_trainer_id, name=None, **kwargs):
     """
-    Get or create a trainer by JRA ID.
+    Get or create a trainer by netkeiba ID.
 
     Args:
-        jra_trainer_id: JRA trainer ID
+        netkeiba_trainer_id: Netkeiba trainer ID (required)
         name: Trainer name
         **kwargs: Additional trainer attributes
 
@@ -184,12 +193,17 @@ def get_or_create_trainer(jra_trainer_id, name, **kwargs):
     """
     from src.data.models import Trainer
 
-    trainer = Trainer.query.filter_by(jra_trainer_id=jra_trainer_id).first()
+    trainer = Trainer.query.filter_by(netkeiba_trainer_id=netkeiba_trainer_id).first()
+
     if not trainer:
-        trainer = Trainer(jra_trainer_id=jra_trainer_id, name=name, **kwargs)
+        trainer = Trainer(
+            netkeiba_trainer_id=netkeiba_trainer_id,
+            name=name,
+            **kwargs
+        )
         db.session.add(trainer)
         db.session.commit()
-        logger.info(f"Created new trainer: {name} ({jra_trainer_id})")
+        logger.info(f"Created new trainer: {name} (netkeiba:{netkeiba_trainer_id})")
     return trainer
 
 
@@ -210,12 +224,12 @@ def save_race_to_db(race_data):
     # Get or create track
     track = get_or_create_track(race_data['track'])
 
-    # Check if race already exists
-    race = Race.query.filter_by(jra_race_id=race_data['jra_race_id']).first()
+    # Check if race already exists by netkeiba ID
+    race = Race.query.filter_by(netkeiba_race_id=race_data['netkeiba_race_id']).first()
 
     if not race:
         race = Race(
-            jra_race_id=race_data['jra_race_id'],
+            netkeiba_race_id=race_data['netkeiba_race_id'],
             track_id=track.id,
             race_date=race_data['race_date'],
             race_number=race_data.get('race_number', 1),
@@ -223,11 +237,19 @@ def save_race_to_db(race_data):
             distance=race_data.get('distance'),
             surface=race_data.get('surface', 'turf'),
             race_class=race_data.get('race_class'),
-            status=race_data.get('status', 'upcoming')
+            status=race_data.get('status', 'upcoming'),
+            kaisai_code=race_data.get('kaisai_code'),
+            meeting_number=race_data.get('meeting_number'),
+            day_number=race_data.get('day_number'),
+            course_type=race_data.get('course_type'),
+            track_variant=race_data.get('track_variant'),
+            weather=race_data.get('weather'),
+            track_condition=race_data.get('track_condition'),
+            prize_money=race_data.get('prize_money')
         )
         db.session.add(race)
         db.session.commit()
-        logger.info(f"Created new race: {race_data['jra_race_id']}")
+        logger.info(f"Created new race: {race_data['netkeiba_race_id']}")
     else:
         # Update existing race
         race.track_id = track.id
@@ -238,8 +260,16 @@ def save_race_to_db(race_data):
         race.surface = race_data.get('surface', race.surface)
         race.race_class = race_data.get('race_class', race.race_class)
         race.status = race_data.get('status', race.status)
+        race.kaisai_code = race_data.get('kaisai_code', race.kaisai_code)
+        race.meeting_number = race_data.get('meeting_number', race.meeting_number)
+        race.day_number = race_data.get('day_number', race.day_number)
+        race.course_type = race_data.get('course_type', race.course_type)
+        race.track_variant = race_data.get('track_variant', race.track_variant)
+        race.weather = race_data.get('weather', race.weather)
+        race.track_condition = race_data.get('track_condition', race.track_condition)
+        race.prize_money = race_data.get('prize_money', race.prize_money)
         db.session.commit()
-        logger.info(f"Updated race: {race_data['jra_race_id']}")
+        logger.info(f"Updated race: {race_data['netkeiba_race_id']}")
 
     return race
 
@@ -249,7 +279,7 @@ def save_race_entries_to_db(race_id, entries):
     Save race entries (horses) to database.
 
     Args:
-        race_id: Database race ID (not JRA ID)
+        race_id: Database race ID (not netkeiba ID)
         entries: List of entry dictionaries
 
     Returns:
@@ -260,20 +290,20 @@ def save_race_entries_to_db(race_id, entries):
     race_entries = []
 
     for entry_data in entries:
-        # Get or create horse, jockey, trainer
+        # Get or create horse, jockey, trainer using netkeiba IDs
         horse = get_or_create_horse(
-            entry_data['jra_horse_id'],
-            entry_data['horse_name']
+            netkeiba_horse_id=entry_data['netkeiba_horse_id'],
+            name=entry_data.get('horse_name')
         )
 
         jockey = get_or_create_jockey(
-            entry_data['jra_jockey_id'],
-            entry_data.get('jockey_name', 'Unknown')
+            netkeiba_jockey_id=entry_data['netkeiba_jockey_id'],
+            name=entry_data.get('jockey_name', 'Unknown')
         )
 
         trainer = get_or_create_trainer(
-            entry_data['jra_trainer_id'],
-            entry_data.get('trainer_name', 'Unknown')
+            netkeiba_trainer_id=entry_data['netkeiba_trainer_id'],
+            name=entry_data.get('trainer_name', 'Unknown')
         )
 
         # Check if entry already exists
@@ -320,7 +350,7 @@ def save_race_results_to_db(race_id, results):
     Save race results to database.
 
     Args:
-        race_id: Database race ID (not JRA ID)
+        race_id: Database race ID (not netkeiba ID)
         results: List of result dictionaries
 
     Returns:
@@ -392,7 +422,7 @@ def save_horse_profile_to_db(profile):
     sire = None
     if profile.get('sire_id') and profile.get('sire_name'):
         sire = get_or_create_horse(
-            jra_horse_id=profile['sire_id'],
+            netkeiba_horse_id=profile['sire_id'],
             name=profile['sire_name']
         )
 
@@ -400,7 +430,7 @@ def save_horse_profile_to_db(profile):
     dam = None
     if profile.get('dam_id') and profile.get('dam_name'):
         dam = get_or_create_horse(
-            jra_horse_id=profile['dam_id'],
+            netkeiba_horse_id=profile['dam_id'],
             name=profile['dam_name']
         )
 
@@ -408,17 +438,17 @@ def save_horse_profile_to_db(profile):
     trainer = None
     if profile.get('trainer_id') and profile.get('trainer_name'):
         trainer = get_or_create_trainer(
-            jra_trainer_id=profile['trainer_id'],
+            netkeiba_trainer_id=profile['trainer_id'],
             name=profile['trainer_name']
         )
 
     # Get or create the main horse
-    horse = Horse.query.filter_by(jra_horse_id=profile['jra_horse_id']).first()
+    horse = Horse.query.filter_by(netkeiba_horse_id=profile['netkeiba_horse_id']).first()
 
     if not horse:
         # Create new horse with all available information
         horse = Horse(
-            jra_horse_id=profile['jra_horse_id'],
+            netkeiba_horse_id=profile['netkeiba_horse_id'],
             name=profile.get('name'),
             birth_date=profile.get('birth_date'),
             sex=profile.get('sex'),
@@ -427,7 +457,7 @@ def save_horse_profile_to_db(profile):
             trainer_id=trainer.id if trainer else None
         )
         db.session.add(horse)
-        logger.info(f"Created new horse profile: {profile.get('name')} ({profile['jra_horse_id']})")
+        logger.info(f"Created new horse profile: {profile.get('name')} ({profile['netkeiba_horse_id']})")
     else:
         # Update existing horse with new information
         updated = False
@@ -457,10 +487,59 @@ def save_horse_profile_to_db(profile):
             updated = True
 
         if updated:
-            logger.info(f"Updated horse profile: {profile.get('name')} ({profile['jra_horse_id']})")
+            logger.info(f"Updated horse profile: {profile.get('name')} ({profile['netkeiba_horse_id']})")
         else:
-            logger.debug(f"Horse profile unchanged: {profile.get('name')} ({profile['jra_horse_id']})")
+            logger.debug(f"Horse profile unchanged: {profile.get('name')} ({profile['netkeiba_horse_id']})")
 
     db.session.commit()
 
     return horse
+
+
+def save_payouts_to_db(race_id, payouts_data):
+    """
+    Save payout data for a race.
+
+    Args:
+        race_id: Database race ID (not netkeiba ID)
+        payouts_data: Dictionary with bet types and payout lists
+                     Format: {'win': [{'combination': '1', 'payout': 600}], ...}
+
+    Returns:
+        List of Payout instances
+    """
+    from src.data.models import Payout
+
+    payout_objects = []
+
+    for bet_type, payout_list in payouts_data.items():
+        for payout_info in payout_list:
+            # Check if payout already exists
+            existing = Payout.query.filter_by(
+                race_id=race_id,
+                bet_type=bet_type,
+                combination=payout_info['combination']
+            ).first()
+
+            if not existing:
+                payout = Payout(
+                    race_id=race_id,
+                    bet_type=bet_type,
+                    combination=payout_info['combination'],
+                    payout=payout_info['payout'],
+                    popularity=payout_info.get('popularity')
+                )
+                db.session.add(payout)
+                logger.debug(f"Created payout: {bet_type} {payout_info['combination']} = {payout_info['payout']}円")
+            else:
+                # Update existing payout
+                existing.payout = payout_info['payout']
+                existing.popularity = payout_info.get('popularity', existing.popularity)
+                logger.debug(f"Updated payout: {bet_type} {payout_info['combination']} = {payout_info['payout']}円")
+
+            payout_objects.append(existing if existing else payout)
+
+    db.session.commit()
+    logger.info(f"Saved {len(payout_objects)} payouts for race {race_id}")
+
+    return payout_objects
