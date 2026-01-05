@@ -29,6 +29,12 @@ python -m src.web.app
 
 # Data scraping
 python scripts/scrape_data.py
+
+# Historical data scraping (bulk collection)
+python scripts/scrape_historical_data.py --years 5
+
+# Complete workflow (scrape races + results for a specific date)
+python scripts/scrape_and_save_results.py 2025-12-28
 ```
 
 ### Testing
@@ -45,7 +51,7 @@ pytest -m scraper
 pytest -m "not slow and not integration"
 
 # Run single test file
-pytest tests/test_scrapers/test_jra_scraper.py
+pytest tests/test_scrapers/test_netkeiba_scraper.py
 
 # Generate coverage report
 pytest --cov=src --cov-report=html
@@ -58,6 +64,62 @@ black .
 
 # Lint code
 flake8
+```
+
+### Machine Learning & Predictions
+```bash
+# Feature extraction
+python scripts/extract_features.py
+
+# Train models
+python scripts/train_model.py --model random_forest --task regression
+python scripts/train_model.py --model xgboost --task classification
+python scripts/train_model.py --model both --task regression
+
+# Generate predictions for upcoming races (auto-scrape + predict)
+python scripts/predict_upcoming_races.py
+python scripts/predict_upcoming_races.py --days-ahead 3 --date 2026-01-11
+
+# Generate predictions for existing races in DB
+python scripts/generate_predictions.py --model-path data/models/model.pkl --save-to-db
+
+# Automated retraining (run once or schedule periodic retraining)
+python scripts/model_retraining_scheduler.py --mode once
+python scripts/model_retraining_scheduler.py --mode schedule --interval weekly --time 02:00
+```
+
+### Betting Simulation
+```bash
+# Run betting simulation via CLI
+python scripts/run_betting_simulation.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31 \
+  --bet-types win place quinella \
+  --bet-amount 100 \
+  --top-n 3
+
+# Without predictions (uniform probability baseline)
+python scripts/run_betting_simulation.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31 \
+  --no-predictions
+
+# View simulation results: http://localhost:5000/simulation/
+```
+
+### Task Scheduling
+```bash
+# Schedule daily prediction generation
+python scripts/scheduler.py --schedule daily --time 08:00
+
+# Schedule weekly predictions (Friday 20:00)
+python scripts/scheduler.py --schedule weekly --day friday --time 20:00
+
+# Run once immediately
+python scripts/scheduler.py --schedule once
+
+# Schedule periodic odds updates
+python scripts/odds_update_scheduler.py --schedule daily --time 09:00
 ```
 
 ## Critical Architecture Patterns
@@ -214,6 +276,119 @@ Use structured logging levels:
 - `WARNING`: Recoverable issues (missing data, using defaults)
 - `ERROR`: Failures requiring attention
 
+### 6. Betting Simulation Architecture
+
+The application includes a comprehensive betting simulation engine for strategy backtesting.
+
+**Core Components**:
+- `BettingSimulator` class in `src/ml/betting_simulator.py`
+- Supports 7 bet types: win (単勝), place (複勝), quinella (馬連), exacta (馬単), wide (ワイド), trio (3連複), trifecta (3連単)
+- Database models: `SimulationRun`, `SimulationBet`
+
+**Workflow**:
+```python
+from src.ml.betting_simulator import BettingSimulator, BettingStrategy, BetType
+
+# Define strategy
+strategy = BettingStrategy(
+    bet_types=[BetType.WIN, BetType.PLACE],
+    bet_amount=100,
+    top_n=3,  # Bet on top 3 predicted horses
+    min_probability=0.1,
+    max_bets_per_race=10
+)
+
+# Run simulation
+simulator = BettingSimulator(strategy, session)
+result = simulator.run_simulation(
+    start_date='2024-01-01',
+    end_date='2024-12-31',
+    use_predictions=True  # Use ML predictions or uniform probability
+)
+
+# Access results
+print(f"Recovery rate: {result.recovery_rate:.2%}")
+print(f"Hit rate: {result.hit_rate:.2%}")
+```
+
+**Important**:
+- Simulations require race results and payout data to be in the database
+- Use `use_predictions=False` to establish a baseline with uniform probabilities
+- Results include per-bet-type statistics and time-series data
+- Web interface available at `/simulation/` for interactive simulations
+
+### 7. Prediction Automation
+
+**Automatic Race Scraping + Prediction**:
+The `predict_upcoming_races.py` script combines scraping and prediction in one workflow:
+
+```python
+# Scrapes upcoming races and generates predictions automatically
+python scripts/predict_upcoming_races.py --days-ahead 3
+```
+
+This is the **recommended** approach for production use because it:
+- Automatically fetches race data for future dates
+- Extracts features and generates predictions
+- Saves everything to database
+- No manual data preparation needed
+
+**Manual Prediction** (for existing DB races):
+```python
+python scripts/generate_predictions.py \
+  --model-path data/models/model.pkl \
+  --race-id 123 \
+  --save-to-db
+```
+
+### 8. Model Retraining System
+
+**Automated Model Retraining** with version control and performance comparison:
+
+```bash
+# Run retraining once
+python scripts/model_retraining_scheduler.py --mode once
+
+# Schedule weekly retraining (recommended for production)
+python scripts/model_retraining_scheduler.py --mode schedule --interval weekly --time 02:00
+```
+
+**Key Features**:
+- Automatic data extraction from database (configurable time window)
+- Model versioning with timestamps
+- Performance comparison with previous models
+- Auto-deployment only if new model improves by threshold (default: 5%)
+- Model registry tracking in `data/models/model_registry.json`
+- Keeps last N models (default: 5), auto-cleanup of old models
+- Optional email/Slack notifications
+
+**Configuration** (`config/retraining_config.json`):
+- `models_to_train`: Which models to retrain (random_forest, xgboost)
+- `training_window_days`: How much historical data to use
+- `performance_threshold`: Minimum improvement to deploy new model
+- `keep_last_n_models`: Model history retention
+
+### 9. Odds Update Mechanism
+
+**Real-time Odds Updates** for races:
+
+```bash
+# Update odds for today's races
+python scripts/update_odds.py
+
+# Update odds for specific date
+python scripts/update_odds.py --date 2026-01-11
+
+# Schedule periodic updates (every 30 minutes on race days)
+python scripts/odds_update_scheduler.py --schedule daily --time 09:00
+```
+
+**How it works**:
+- Scrapes latest odds from netkeiba.com
+- Updates `morning_odds` field in `RaceEntry` table
+- Only updates races that haven't started yet
+- Used by prediction models for more accurate probabilities
+
 ## Data Flow Patterns
 
 ### Scraping → Database Pipeline
@@ -347,41 +522,85 @@ Use the provided `save_race_to_db()` and `save_race_entries_to_db()` functions -
 ## Current Implementation Status
 
 **Completed**:
-- ✅ Database models and migrations
-- ✅ JRA scraper foundation (race calendar, race cards)
+- ✅ Database models and migrations (UTF-8 support)
+- ✅ Netkeiba.com scraper (race calendar, cards, results, horse profiles)
 - ✅ Database save pipeline with get-or-create pattern
-- ✅ Race result scraping and saving (`scrape_race_result()`, `save_race_results_to_db()`)
-- ✅ Horse profile scraping (`scrape_horse_profile()`)
-- ✅ Basic web interface structure
+- ✅ Race result and payout scraping (`scrape_race_result()`, `save_payouts_to_db()`)
+- ✅ Horse profile scraping with pedigree data (`scrape_horse_profile()`)
+- ✅ Feature engineering (40+ features) (`src/ml/feature_engineering.py`)
+- ✅ ML model training (RandomForest, XGBoost) (`src/ml/models/`)
+- ✅ Model evaluation and metrics (`src/ml/evaluation.py`)
+- ✅ Prediction generation (`scripts/generate_predictions.py`)
+- ✅ Automated prediction for upcoming races (`scripts/predict_upcoming_races.py`)
+- ✅ **Betting simulation engine** with 7 bet types (`src/ml/betting_simulator.py`)
+- ✅ **Web interface with simulation UI** (`/simulation/`, `/simulation/history`)
+- ✅ Complete REST API endpoints (`/api/races`, `/api/predictions`, `/api/simulation/run`)
+- ✅ Performance optimization and caching (Flask-Caching)
+- ✅ **Model retraining scheduler** with auto-deployment (`scripts/model_retraining_scheduler.py`)
+- ✅ **Odds update automation** (`scripts/odds_update_scheduler.py`)
+- ✅ Task scheduling system (`scripts/scheduler.py`)
 - ✅ Configuration and logging system
-- ✅ Comprehensive test suite for scraping and database operations
+- ✅ Comprehensive test suite (scrapers, models, ML, API)
 
-**Pending**:
-- ⏳ Feature engineering for ML (`src/ml/feature_engineering.py`)
-- ⏳ ML model training and prediction (`src/ml/models/`)
-- ⏳ Complete web interface with predictions display
-- ⏳ REST API endpoints for external access
-- ⏳ Performance optimization and caching
+**Pending/Future Enhancements**:
+- ⏳ User authentication and authorization
+- ⏳ Favorites/bookmarking feature
+- ⏳ Mobile app (React Native/Flutter)
+- ⏳ Advanced visualization (charts, graphs)
+- ⏳ Deployment automation (Docker/Kubernetes)
+- ⏳ Real-time notifications (push, email)
+- ⏳ Multi-model ensemble predictions
 
 ## Key Files Reference
 
 ### Core Implementation
-- `src/scrapers/jra_scraper.py` - Main scraper implementation with CNAME handling
+- `src/scrapers/netkeiba_scraper.py` - Main scraper (netkeiba.com, EUC-JP)
+- `src/scrapers/jra_scraper.py` - Legacy scraper (DEPRECATED - CNAME issues)
 - `src/data/database.py` - Get-or-create functions and save logic
-- `src/data/models.py` - SQLAlchemy ORM models
+- `src/data/models.py` - SQLAlchemy ORM models (14 tables including SimulationRun/SimulationBet)
 - `config/settings.py` - Environment configurations
+- `config/retraining_config.json` - Model retraining configuration
+
+### Machine Learning
+- `src/ml/feature_engineering.py` - Feature extraction (40+ features)
+- `src/ml/preprocessing.py` - Data preprocessing and scaling
+- `src/ml/evaluation.py` - Model evaluation metrics
+- `src/ml/betting_simulator.py` - Betting simulation engine (7 bet types)
+- `src/ml/models/base_model.py` - Abstract base model class
+- `src/ml/models/random_forest.py` - RandomForest implementation
+- `src/ml/models/xgboost_model.py` - XGBoost implementation
+
+### Web Application
+- `src/web/app.py` - Flask application factory
+- `src/web/cache.py` - Caching configuration
+- `src/web/routes/main.py` - Main pages (home, races, race detail)
+- `src/web/routes/predictions.py` - Prediction display pages
+- `src/web/routes/entities.py` - Horse/Jockey/Trainer pages
+- `src/web/routes/search.py` - Search functionality
+- `src/web/routes/api.py` - REST API endpoints
+- `src/web/routes/simulation.py` - Betting simulation UI and API
 
 ### Scripts
+- `scripts/scrape_data.py` - Basic race data scraping
 - `scripts/scrape_and_save_results.py` - Complete workflow: scrape races, cards, and results for a single date
-- `scripts/scrape_historical_data.py` - Bulk scraping for multiple years of historical data (weekends only by default)
-- `scripts/scrape_data.py` - General data scraping script
-- `scripts/debug_race_result_html.py` - Debug script to fetch and analyze race result HTML
-- `scripts/get_horse_cname.py` - Utility to extract horse CNAMEs
+- `scripts/scrape_historical_data.py` - Bulk scraping for multiple years (weekends only by default)
+- `scripts/extract_features.py` - Feature extraction for ML training
+- `scripts/train_model.py` - Model training workflow
+- `scripts/generate_predictions.py` - Prediction generation for existing races
+- `scripts/predict_upcoming_races.py` - Auto-scrape + predict upcoming races (recommended)
+- `scripts/run_betting_simulation.py` - CLI betting simulation
+- `scripts/model_retraining_scheduler.py` - Automated model retraining with versioning
+- `scripts/update_odds.py` - Odds update utility
+- `scripts/odds_update_scheduler.py` - Scheduled odds updates
+- `scripts/scheduler.py` - General task scheduler
+- `scripts/init_db.py` - Database initialization
 
 ### Tests
-- `tests/test_scrapers/test_jra_scraper.py` - Tests for race calendar and race card scraping
-- `tests/test_scrapers/test_race_results.py` - Tests for race result scraping and database saving
+- `tests/test_scrapers/test_netkeiba_scraper.py` - Tests for netkeiba scraper
+- `tests/test_scrapers/test_jra_scraper.py` - Tests for legacy JRA scraper
 - `tests/test_models/` - Database model tests
+- `tests/test_ml/test_betting_simulator.py` - Betting simulation tests
+- `tests/test_api/` - API endpoint tests
 
 ### Documentation
 - `RequirementsDefinition.md` - Detailed requirements and data model specifications
