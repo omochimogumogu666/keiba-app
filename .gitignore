@@ -96,6 +96,10 @@ service-account.json
 *.sql
 *.dump
 
+# Database migrations (commit migrations/ directory but not test databases)
+migrations/versions/*.pyc
+migrations/__pycache__/
+
 # ============================================================================
 # Framework Specific
 # ============================================================================
@@ -237,19 +241,33 @@ temp/
 # Debug output files
 scripts/debug/*.html
 scripts/debug/*.json
+data/debug/*.html
+data/debug/*.txt
+data/debug/*.json
 debug_*.html
 debug_*.json
+debug_*.txt
 
 # Scraped HTML files for debugging
 *.scraped.html
 
-# Test output
+# Test output files
+test_output.txt
+test_*.txt
 test-results/
 test-reports/
+
+# Temporary data files
+data/temp/
 
 # Performance profiling
 *.prof
 *.lprof
+
+# Personal configuration files
+config/examples/*.json
+config/examples/.env*
+README_PERSONAL.md
 
 # ============================================================================
 # Documentation (Keep project docs, ignore generated docs)

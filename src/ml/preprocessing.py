@@ -51,6 +51,8 @@ class FeaturePreprocessor:
         # Fit imputer and scaler on numerical features only
         numerical_features = X[self.feature_columns]
 
+        # Use add_indicator=False and keep_empty_features=True to maintain column count
+        self.imputer = SimpleImputer(strategy='median', keep_empty_features=True)
         self.imputer.fit(numerical_features)
         imputed_data = self.imputer.transform(numerical_features)
 
@@ -98,7 +100,7 @@ class FeaturePreprocessor:
 
         # Add back identifiers
         if not identifiers.empty:
-            X_transformed = pd.concat([identifiers.reset_index(drop=True), X_transformed], axis=1)
+            X_transformed = pd.concat([identifiers.reset_index(drop=True), X_transformed.reset_index(drop=True)], axis=1)
 
         return X_transformed
 
@@ -124,8 +126,8 @@ class FeaturePreprocessor:
         Returns:
             List of feature column names
         """
-        # Exclude ID columns from scaling
-        exclude_patterns = ['_id', 'race_entry_id']
+        # Exclude ID columns and date columns from scaling
+        exclude_patterns = ['_id', 'race_entry_id', 'race_date']
         feature_cols = [
             col for col in X.columns
             if not any(pattern in col for pattern in exclude_patterns)

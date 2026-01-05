@@ -343,6 +343,27 @@ class NetkeibaScraper:
             logger.error(f"Error parsing race card for {race_id}: {e}")
             return None
 
+    def _parse_post_time(self, text: str) -> Optional[str]:
+        """
+        Parse post time from text (e.g., '発走 15:25' -> '15:25').
+
+        Args:
+            text: Text containing post time
+
+        Returns:
+            Time string in HH:MM format or None
+        """
+        if not text:
+            return None
+
+        # Pattern: 発走 15:25 or just 15:25
+        match = re.search(r'(\d{1,2}):(\d{2})', text)
+        if match:
+            hour = match.group(1).zfill(2)
+            minute = match.group(2)
+            return f"{hour}:{minute}"
+        return None
+
     def _parse_race_card_data(self, soup: BeautifulSoup, race_id: str) -> Dict:
         """Parse race card HTML into structured data."""
 
@@ -366,9 +387,13 @@ class NetkeibaScraper:
         surface = None
         weather = None
         track_condition = None
+        post_time = None
 
         if race_title_elem:
             title_text = self._clean_text(race_title_elem.get_text())
+
+            # Extract post time (発走時刻)
+            post_time = self._parse_post_time(title_text)
 
             # Extract distance (e.g., "芝1600m" or "ダ1200m")
             distance_match = re.search(r'[芝ダ](\d+)m', title_text)
@@ -450,6 +475,7 @@ class NetkeibaScraper:
                 'race_class': race_class,
                 'weather': weather,
                 'track_condition': track_condition,
+                'post_time': post_time,
             },
             'entries': entries
         }
@@ -854,6 +880,80 @@ class NetkeibaScraper:
                 profile['sire_netkeiba_id'] = self._extract_id_from_url(sire_url, r'/horse/(\d+)/')
 
         return profile
+
+    def scrape_latest_odds(self, race_id: str) -> Optional[Dict]:
+        """
+        Scrape latest odds for a specific race.
+
+        This method fetches the current odds from the race card page,
+        which is useful for updating odds closer to race start time.
+
+        Args:
+            race_id: Netkeiba race ID (12 digits)
+
+        Returns:
+            Dictionary mapping horse_number to latest_odds, or None on failure
+        """
+        url = f"{self.BASE_URL}/race/shutuba.html"
+        params = {'race_id': race_id}
+
+        logger.info(f"Scraping latest odds for race_id={race_id}")
+
+        response = self._make_request(url, params)
+        if not response:
+            return None
+
+        soup = self._parse_html(response)
+        if not soup:
+            return None
+
+        try:
+            odds_data = {}
+            shutuba_table = soup.find('table', class_='Shutuba_Table')
+
+            if not shutuba_table:
+                logger.warning(f"No Shutuba_Table found for race_id={race_id}")
+                return None
+
+            entry_rows = shutuba_table.find_all('tr', class_=re.compile(r'HorseList'))
+
+            for row in entry_rows:
+                try:
+                    # Extract horse number
+                    umaban_td = row.find('td', class_=re.compile(r'Umaban\d+'))
+                    if not umaban_td:
+                        continue
+
+                    umaban_text = self._clean_text(umaban_td.get_text())
+                    try:
+                        horse_number = int(umaban_text)
+                    except ValueError:
+                        continue
+
+                    # Extract latest odds
+                    odds_td = row.find('td', class_=re.compile(r'Popular'))
+                    if odds_td:
+                        odds_span = odds_td.find('span', id=re.compile(r'odds-'))
+                        if odds_span:
+                            odds_text = self._clean_text(odds_span.get_text())
+                            # Handle '---.-' for unavailable odds
+                            if odds_text and odds_text != '---.-':
+                                try:
+                                    latest_odds = float(odds_text)
+                                    odds_data[horse_number] = latest_odds
+                                except ValueError:
+                                    pass
+
+                except Exception as e:
+                    logger.error(f"Error parsing odds row: {e}")
+                    continue
+
+            logger.info(f"Scraped odds for {len(odds_data)} horses in race {race_id}")
+            return odds_data
+
+        except Exception as e:
+            logger.error(f"Error parsing latest odds for {race_id}: {e}")
+            return None
 
     def get_upcoming_races(self, days_ahead: int = 7) -> List[Dict]:
         """

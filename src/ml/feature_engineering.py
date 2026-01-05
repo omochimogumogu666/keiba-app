@@ -186,6 +186,9 @@ class FeatureExtractor:
         features['horse_id'] = entry.horse_id
         features['race_entry_id'] = entry.id
 
+        # Race date as string for splitting (will be excluded from training features)
+        features['race_date'] = str(race.race_date)
+
         # Race features
         features.update(self._extract_race_features(race))
 
@@ -284,8 +287,8 @@ class FeatureExtractor:
 
         # Overall statistics
         wins = sum(1 for e in past_entries if e.result and e.result.finish_position == 1)
-        places = sum(1 for e in past_entries if e.result and e.result.finish_position <= 3)
-        avg_position = np.mean([e.result.finish_position for e in past_entries if e.result and e.result.finish_position])
+        places = sum(1 for e in past_entries if e.result and e.result.finish_position is not None and e.result.finish_position <= 3)
+        avg_position = np.mean([e.result.finish_position for e in past_entries if e.result and e.result.finish_position is not None])
 
         features['horse_win_rate'] = wins / total_races
         features['horse_place_rate'] = places / total_races
@@ -345,7 +348,7 @@ class FeatureExtractor:
             return features
 
         wins = sum(1 for e in past_entries if e.result and e.result.finish_position == 1)
-        places = sum(1 for e in past_entries if e.result and e.result.finish_position <= 3)
+        places = sum(1 for e in past_entries if e.result and e.result.finish_position is not None and e.result.finish_position <= 3)
 
         features['jockey_win_rate'] = wins / total_races
         features['jockey_place_rate'] = places / total_races
@@ -375,7 +378,7 @@ class FeatureExtractor:
             return features
 
         wins = sum(1 for e in past_entries if e.result and e.result.finish_position == 1)
-        places = sum(1 for e in past_entries if e.result and e.result.finish_position <= 3)
+        places = sum(1 for e in past_entries if e.result and e.result.finish_position is not None and e.result.finish_position <= 3)
 
         features['trainer_win_rate'] = wins / total_races
         features['trainer_place_rate'] = places / total_races
@@ -407,7 +410,7 @@ class FeatureExtractor:
             features['days_since_last_race'] = 999
             return features
 
-        positions = [e.result.finish_position for e in past_entries if e.result and e.result.finish_position]
+        positions = [e.result.finish_position for e in past_entries if e.result and e.result.finish_position is not None]
 
         if positions:
             features['recent_avg_position'] = np.mean(positions)

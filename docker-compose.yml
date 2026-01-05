@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-keiba_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-keiba_password}
+      POSTGRES_DB: ${DB_NAME:-keiba_db}
+    ports:
+      # localhost専用バインド - 外部アクセス完全遮断
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-keiba_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    command: python run.py
+    volumes:
+      - .:/app
+      - /app/venv
+      # データとログの永続化
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      # localhost専用バインド - 外部アクセス完全遮断
+      - "127.0.0.1:5000:5000"
+    env_file:
+      # .envファイルから環境変数を読み込み
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${DB_USER:-keiba_user}:${DB_PASSWORD:-keiba_password}@db:5432/${DB_NAME:-keiba_db}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

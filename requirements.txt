@@ -26,6 +26,7 @@ psycopg2-binary==2.9.9
 
 # Task Scheduling
 APScheduler==3.10.4
+schedule==1.2.0
 
 # Utilities
 python-dotenv==1.0.0

@@ -14,7 +14,9 @@
       "Bash(python scripts/debug_race_card_html.py:*)",
       "Bash(python:*)",
       "Bash(pytest:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(docker compose logs:*)",
+      "Bash(docker compose:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

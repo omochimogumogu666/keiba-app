@@ -1,7 +1,9 @@
 """
 Application configuration settings.
+Optimized for personal use - localhost only, secure by default.
 """
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -11,9 +13,12 @@ load_dotenv()
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Setup logger for config warnings
+logger = logging.getLogger(__name__)
+
 
 class Config:
-    """Base configuration."""
+    """Base configuration - Optimized for personal use."""
 
     # Flask
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -71,9 +76,33 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    """Development configuration."""
+    """Development configuration - Optimized for personal use."""
     DEBUG = True
     SQLALCHEMY_ECHO = True
+
+    @classmethod
+    def init_app(cls, app):
+        Config.init_app(app)
+
+        # Warn if using default SECRET_KEY
+        if cls.SECRET_KEY == 'dev-secret-key-change-in-production':
+            logger.warning(
+                "\n" + "=" * 80 + "\n"
+                "⚠️  WARNING: Using default SECRET_KEY!\n"
+                "   For security, generate a new one with:\n"
+                "   python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+                "   Then add it to your .env file as SECRET_KEY=<generated-key>\n"
+                + "=" * 80
+            )
+            # Also print to console for visibility
+            print(
+                "\n" + "=" * 80 + "\n"
+                "⚠️  WARNING: Using default SECRET_KEY!\n"
+                "   For security, generate a new one with:\n"
+                "   python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+                "   Then add it to your .env file as SECRET_KEY=<generated-key>\n"
+                + "=" * 80 + "\n"
+            )
 
 
 class ProductionConfig(Config):

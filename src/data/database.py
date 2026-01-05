@@ -228,10 +228,23 @@ def save_race_to_db(race_data):
     race = Race.query.filter_by(netkeiba_race_id=race_data['netkeiba_race_id']).first()
 
     if not race:
+        # Parse post_time if provided as string
+        post_time = None
+        if race_data.get('post_time'):
+            if isinstance(race_data['post_time'], str):
+                from datetime import datetime
+                try:
+                    post_time = datetime.strptime(race_data['post_time'], '%H:%M').time()
+                except ValueError:
+                    logger.warning(f"Invalid post_time format: {race_data['post_time']}")
+            else:
+                post_time = race_data['post_time']
+
         race = Race(
             netkeiba_race_id=race_data['netkeiba_race_id'],
             track_id=track.id,
             race_date=race_data['race_date'],
+            post_time=post_time,
             race_number=race_data.get('race_number', 1),
             race_name=race_data.get('race_name'),
             distance=race_data.get('distance'),
@@ -254,6 +267,18 @@ def save_race_to_db(race_data):
         # Update existing race
         race.track_id = track.id
         race.race_date = race_data['race_date']
+
+        # Update post_time if provided
+        if race_data.get('post_time'):
+            if isinstance(race_data['post_time'], str):
+                from datetime import datetime
+                try:
+                    race.post_time = datetime.strptime(race_data['post_time'], '%H:%M').time()
+                except ValueError:
+                    logger.warning(f"Invalid post_time format: {race_data['post_time']}")
+            else:
+                race.post_time = race_data['post_time']
+
         race.race_number = race_data.get('race_number', race.race_number)
         race.race_name = race_data.get('race_name', race.race_name)
         race.distance = race_data.get('distance', race.distance)

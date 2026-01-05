@@ -303,7 +303,7 @@ def main():
         if args.task == 'regression':
             print(f"  Test RMSE: {metrics['test_metrics']['rmse']:.4f}")
             print(f"  Test MAE: {metrics['test_metrics']['mae']:.4f}")
-            print(f"  Test R²: {metrics['test_metrics']['r2_score']:.4f}")
+            print(f"  Test R2: {metrics['test_metrics']['r2_score']:.4f}")
         else:
             print(f"  Test Accuracy: {metrics['test_metrics']['accuracy']:.4f}")
             print(f"  Test F1 Score: {metrics['test_metrics']['f1_score']:.4f}")
