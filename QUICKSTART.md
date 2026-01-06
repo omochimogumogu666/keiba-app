@@ -11,15 +11,23 @@
 
 ### 1. プロジェクトのセットアップ
 
+**クイックスタート（Docker、推奨）:**
+```bash
+# Mac/Linux
+./quickstart.sh
+
+# Windows
+quickstart.bat
+```
+
+**手動セットアップ:**
 ```bash
 # 仮想環境を作成
 python -m venv venv
 
 # 仮想環境をアクティベート
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
+source venv/bin/activate    # Mac/Linux
+# venv\Scripts\activate     # Windows
 
 # 依存関係をインストール
 pip install -r requirements.txt
@@ -86,14 +94,24 @@ python scripts/scheduler.py --schedule daily --time 08:00
 2. 予想を生成
 3. 結果をデータベースとCSVに保存
 
-### Windowsで常時起動させる
+### Mac/Linuxで常時起動させる（cron）
+
+```bash
+# crontab編集
+crontab -e
+
+# 毎日朝8時に実行（以下の行を追加）
+0 8 * * * cd /path/to/keiba-app && source venv/bin/activate && python scripts/predict_upcoming_races.py
+```
+
+### Windowsで常時起動させる（タスクスケジューラ）
 
 タスクスケジューラーに登録することで、Windowsの起動時に自動的にスケジューラーを開始できます。
 
 1. `run_scheduler.bat` を作成:
 ```batch
 @echo off
-cd /d C:\Users\h01it\keiba-app
+cd /d C:\path\to\keiba-app
 call venv\Scripts\activate
 python scripts/scheduler.py --schedule daily --time 08:00
 ```

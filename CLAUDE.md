@@ -12,10 +12,14 @@ JRA競馬予想アプリケーション (JRA Horse Racing Prediction Application
 
 ### Setup & Development
 ```bash
-# Initial setup
+# Quick start (Docker, recommended)
+./quickstart.sh      # Mac/Linux
+quickstart.bat       # Windows
+
+# Manual setup
 python -m venv venv
-venv\Scripts\activate  # Windows
 source venv/bin/activate  # Mac/Linux
+# venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 cp .env.example .env
 
@@ -451,7 +455,7 @@ def test_train_model():
 - **Unit tests**: Mock HTML responses, test parsing logic
 - **Integration tests**: Use actual JRA pages (mark with `@pytest.mark.integration`)
 - Keep saved HTML fixtures in `tests/fixtures/` for repeatable parsing tests
-- Handle Windows `cp932` codec issues in console output with try-except blocks
+- Handle encoding issues in console output with try-except blocks (mainly for Windows `cp932`)
 
 ### Testing Database
 Always use `TestingConfig` for isolated in-memory database:
@@ -466,8 +470,8 @@ def test_save_race():
 
 ## Common Gotchas
 
-### 1. Unicode Handling on Windows
-Windows console uses `cp932` codec which cannot display all Japanese characters. Wrap print statements:
+### 1. Unicode Handling
+On Windows, the console uses `cp932` codec which cannot display all Japanese characters. Mac/Linux typically use UTF-8 and don't have this issue. For cross-platform compatibility, wrap print statements:
 ```python
 try:
     print(f"馬名: {horse_name}")

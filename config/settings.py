@@ -36,7 +36,7 @@ class Config:
     SCRAPING_DELAY = int(os.getenv('SCRAPING_DELAY', '3'))
     USER_AGENT = os.getenv(
         'USER_AGENT',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     )
     REQUEST_TIMEOUT = 30
     MAX_RETRIES = 3
