@@ -32,19 +32,23 @@ class NetkeibaScraper:
     DB_URL = "https://db.netkeiba.com"
     ENCODING = "euc-jp"  # Netkeiba uses EUC-JP (not Shift_JIS like JRA)
 
-    # Track name mapping: netkeiba Japanese -> standard names
-    TRACK_MAPPING = {
-        '札幌': '札幌',
-        '函館': '函館',
-        '福島': '福島',
-        '新潟': '新潟',
-        '東京': '東京',
-        '中山': '中山',
-        '中京': '中京',
-        '京都': '京都',
-        '阪神': '阪神',
-        '小倉': '小倉',
+    # Track code to name mapping (kaisai_code -> track name)
+    # Used for parsing race IDs and calendar data
+    TRACK_CODE_MAP = {
+        '01': '札幌',
+        '02': '函館',
+        '03': '福島',
+        '04': '新潟',
+        '05': '東京',
+        '06': '中山',
+        '07': '中京',
+        '08': '京都',
+        '09': '阪神',
+        '10': '小倉',
     }
+
+    # Reverse mapping for convenience
+    TRACK_NAME_TO_CODE = {v: k for k, v in TRACK_CODE_MAP.items()}
 
     def __init__(self, delay: int = None):
         """
@@ -56,7 +60,17 @@ class NetkeibaScraper:
         self.delay = delay if delay is not None else Config.SCRAPING_DELAY
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': Config.USER_AGENT
+            'User-Agent': Config.USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
         })
         logger.info(f"NetkeibaScraper initialized with {self.delay}s delay")
 
@@ -71,23 +85,45 @@ class NetkeibaScraper:
         Returns:
             Response object or None on failure
         """
-        try:
-            response = self.session.get(
-                url,
-                params=params,
-                timeout=Config.REQUEST_TIMEOUT
-            )
-            response.raise_for_status()
+        for attempt in range(Config.MAX_RETRIES):
+            try:
+                response = self.session.get(
+                    url,
+                    params=params,
+                    timeout=Config.REQUEST_TIMEOUT
+                )
 
-            # Rate limiting - always wait after successful request
-            time.sleep(self.delay)
+                # Handle 403 specifically
+                if response.status_code == 403:
+                    logger.warning(f"403 Forbidden on attempt {attempt + 1}/{Config.MAX_RETRIES}: {url}")
+                    if attempt < Config.MAX_RETRIES - 1:
+                        # Wait longer before retry (exponential backoff)
+                        wait_time = self.delay * (2 ** attempt)
+                        logger.info(f"Waiting {wait_time}s before retry...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(f"403 Forbidden after {Config.MAX_RETRIES} attempts: {url}")
+                        return None
 
-            logger.debug(f"Request successful: {url}")
-            return response
+                response.raise_for_status()
 
-        except requests.RequestException as e:
-            logger.error(f"Request failed for {url}: {e}")
-            return None
+                # Rate limiting - always wait after successful request
+                time.sleep(self.delay)
+
+                logger.debug(f"Request successful: {url}")
+                return response
+
+            except requests.RequestException as e:
+                logger.error(f"Request failed for {url}: {e}")
+                if attempt < Config.MAX_RETRIES - 1:
+                    wait_time = self.delay * (2 ** attempt)
+                    logger.info(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                else:
+                    return None
+
+        return None
 
     def _parse_html(self, response: requests.Response) -> Optional[BeautifulSoup]:
         """
@@ -265,32 +301,17 @@ class NetkeibaScraper:
                 # Parse race_id to extract components
                 # Format: YYYYKKRRDDNN
                 # YYYY = year, KK = kaisai code, RR = meeting, DD = day, NN = race number
-                if len(race_id) == 12:
-                    year = race_id[0:4]
-                    kaisai_code = race_id[4:6]
-                    meeting_number = int(race_id[6:8])
-                    day_number = int(race_id[8:10])
-                    race_number = int(race_id[10:12])
-                else:
+                if len(race_id) != 12 or not race_id.isdigit():
                     logger.warning(f"Invalid race_id format: {race_id}")
                     continue
 
-                # Track code mapping (kaisai_code to track name)
-                # Based on JRA track codes
-                track_code_map = {
-                    '01': '札幌',
-                    '02': '函館',
-                    '03': '福島',
-                    '04': '新潟',
-                    '05': '東京',
-                    '06': '中山',
-                    '07': '中京',
-                    '08': '京都',
-                    '09': '阪神',
-                    '10': '小倉',
-                }
+                kaisai_code = race_id[4:6]
+                meeting_number = int(race_id[6:8])
+                day_number = int(race_id[8:10])
+                race_number = int(race_id[10:12])
 
-                track_name = track_code_map.get(kaisai_code, None)
+                # Use class-level track code mapping
+                track_name = self.TRACK_CODE_MAP.get(kaisai_code)
 
                 race_info = {
                     'netkeiba_race_id': race_id,
@@ -364,87 +385,130 @@ class NetkeibaScraper:
             return f"{hour}:{minute}"
         return None
 
-    def _parse_race_card_data(self, soup: BeautifulSoup, race_id: str) -> Dict:
-        """Parse race card HTML into structured data."""
+    def _extract_race_name(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract race name from HTML.
 
-        # Extract race name from h1 tag with class RaceName
-        race_name = None
+        Args:
+            soup: BeautifulSoup object
+
+        Returns:
+            Race name or None
+        """
         race_name_elem = soup.find('h1', class_='RaceName')
         if race_name_elem:
-            race_name = self._clean_text(race_name_elem.get_text())
-        else:
-            # Fallback: try RaceList_Item02 and extract just the first line
-            race_list_elem = soup.find('div', class_='RaceList_Item02')
-            if race_list_elem:
-                # Get first non-empty line
-                lines = [line.strip() for line in race_list_elem.get_text().split('\n') if line.strip()]
-                if lines:
-                    race_name = lines[0]
+            return self._clean_text(race_name_elem.get_text())
 
-        # Extract race metadata from RaceData01
-        race_title_elem = soup.find('div', class_='RaceData01')
-        distance = None
-        surface = None
-        weather = None
-        track_condition = None
-        post_time = None
+        # Fallback: try RaceList_Item02 and extract just the first line
+        race_list_elem = soup.find('div', class_='RaceList_Item02')
+        if race_list_elem:
+            lines = [line.strip() for line in race_list_elem.get_text().split('\n') if line.strip()]
+            if lines:
+                return lines[0]
 
-        if race_title_elem:
-            title_text = self._clean_text(race_title_elem.get_text())
+        return None
 
-            # Extract post time (発走時刻)
-            post_time = self._parse_post_time(title_text)
+    def _extract_race_conditions(self, soup: BeautifulSoup) -> Dict:
+        """
+        Extract race conditions (distance, surface, weather, track condition, post time).
 
-            # Extract distance (e.g., "芝1600m" or "ダ1200m")
-            distance_match = re.search(r'[芝ダ](\d+)m', title_text)
-            if distance_match:
-                distance = int(distance_match.group(1))
+        Args:
+            soup: BeautifulSoup object
 
-            # Extract surface
-            if '芝' in title_text:
-                surface = 'turf'
-            elif 'ダ' in title_text or 'ダート' in title_text:
-                surface = 'dirt'
+        Returns:
+            Dictionary with race conditions
+        """
+        conditions = {
+            'distance': None,
+            'surface': None,
+            'weather': None,
+            'track_condition': None,
+            'post_time': None,
+        }
 
-            # Extract weather from text (e.g., "天候:晴")
-            weather_match = re.search(r'天候[:：]\s*([晴曇雨小雨]+)', title_text)
-            if weather_match:
-                weather = weather_match.group(1)
+        race_data01 = soup.find('div', class_='RaceData01')
+        if not race_data01:
+            return conditions
 
-            # Extract track condition from text (e.g., "馬場:良")
-            track_match = re.search(r'馬場[:：]\s*([良稍重不良]+)', title_text)
-            if track_match:
-                track_condition = track_match.group(1)
+        title_text = self._clean_text(race_data01.get_text())
 
-        # Extract race class from RaceData02
+        # Extract post time (発走時刻)
+        conditions['post_time'] = self._parse_post_time(title_text)
+
+        # Extract distance (e.g., "芝1600m" or "ダ1200m")
+        distance_match = re.search(r'[芝ダ](\d+)m', title_text)
+        if distance_match:
+            conditions['distance'] = int(distance_match.group(1))
+
+        # Extract surface
+        if '芝' in title_text:
+            conditions['surface'] = 'turf'
+        elif 'ダ' in title_text or 'ダート' in title_text:
+            conditions['surface'] = 'dirt'
+
+        # Extract weather from text (e.g., "天候:晴")
+        weather_match = re.search(r'天候[:：]\s*([晴曇雨小雨]+)', title_text)
+        if weather_match:
+            conditions['weather'] = weather_match.group(1)
+
+        # Extract track condition from text (e.g., "馬場:良")
+        track_match = re.search(r'馬場[:：]\s*([良稍重不良]+)', title_text)
+        if track_match:
+            conditions['track_condition'] = track_match.group(1)
+
+        return conditions
+
+    def _extract_race_class(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract race class from HTML.
+
+        Args:
+            soup: BeautifulSoup object
+
+        Returns:
+            Race class string or None
+        """
         race_data02 = soup.find('div', class_='RaceData02')
-        race_class = None
+        if not race_data02:
+            return None
 
-        if race_data02:
-            data_text = self._clean_text(race_data02.get_text())
+        data_text = self._clean_text(race_data02.get_text())
 
-            # Extract race class (G1, G2, G3, etc.)
-            # Note: Use both half-width (3) and full-width (３) numbers
-            if 'G1' in data_text or 'GⅠ' in data_text or 'GI' in data_text:
-                race_class = 'G1'
-            elif 'G2' in data_text or 'GⅡ' in data_text or 'GII' in data_text:
-                race_class = 'G2'
-            elif 'G3' in data_text or 'GⅢ' in data_text or 'GIII' in data_text:
-                race_class = 'G3'
-            elif 'OP' in data_text or 'オープン' in data_text:
-                race_class = 'OP'
-            elif 'L' in data_text or 'リステッド' in data_text:
-                race_class = 'Listed'
-            elif '3勝クラス' in data_text or '３勝クラス' in data_text:
-                race_class = '3勝クラス'
-            elif '2勝クラス' in data_text or '２勝クラス' in data_text:
-                race_class = '2勝クラス'
-            elif '1勝クラス' in data_text or '１勝クラス' in data_text:
-                race_class = '1勝クラス'
-            elif '未勝利' in data_text:
-                race_class = '未勝利'
-            elif '新馬' in data_text:
-                race_class = '新馬'
+        # Race class patterns with priority order
+        class_patterns = [
+            (['G1', 'GⅠ', 'GI'], 'G1'),
+            (['G2', 'GⅡ', 'GII'], 'G2'),
+            (['G3', 'GⅢ', 'GIII'], 'G3'),
+            (['OP', 'オープン'], 'OP'),
+            (['L', 'リステッド'], 'Listed'),
+            (['3勝クラス', '３勝クラス'], '3勝クラス'),
+            (['2勝クラス', '２勝クラス'], '2勝クラス'),
+            (['1勝クラス', '１勝クラス'], '1勝クラス'),
+            (['未勝利'], '未勝利'),
+            (['新馬'], '新馬'),
+        ]
+
+        for patterns, race_class in class_patterns:
+            if any(pattern in data_text for pattern in patterns):
+                return race_class
+
+        return None
+
+    def _parse_race_card_data(self, soup: BeautifulSoup, race_id: str) -> Dict:
+        """
+        Parse race card HTML into structured data.
+
+        Args:
+            soup: BeautifulSoup object
+            race_id: Netkeiba race ID
+
+        Returns:
+            Dictionary with race_info and entries
+        """
+        # Extract race metadata using helper methods
+        race_name = self._extract_race_name(soup)
+        conditions = self._extract_race_conditions(soup)
+        race_class = self._extract_race_class(soup)
 
         # Parse entries table
         entries = []
@@ -460,7 +524,7 @@ class NetkeibaScraper:
                     entry = self._parse_entry_row(row)
                     if entry:
                         entries.append(entry)
-                except Exception as e:
+                except (ValueError, AttributeError) as e:
                     logger.error(f"Error parsing entry row: {e}")
                     continue
 
@@ -470,12 +534,8 @@ class NetkeibaScraper:
             'race_info': {
                 'netkeiba_race_id': race_id,
                 'race_name': race_name,
-                'distance': distance,
-                'surface': surface,
                 'race_class': race_class,
-                'weather': weather,
-                'track_condition': track_condition,
-                'post_time': post_time,
+                **conditions,
             },
             'entries': entries
         }

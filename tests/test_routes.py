@@ -196,7 +196,7 @@ class TestRaceEntryDisplay:
 
         for i in range(3):
             horse = Horse(
-                jra_horse_id=f'H_TEST_{i}',
+                netkeiba_horse_id=f'H_TEST_{i}',
                 name=f'テスト馬{i}',
                 birth_date=date(2020, 3, 1),
                 sex='牡'

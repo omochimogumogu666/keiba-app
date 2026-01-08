@@ -14,7 +14,7 @@ class TestHorseProfileParsing:
         """Test that horse profile returns correct structure."""
         # Create a mock profile response
         expected_keys = [
-            'jra_horse_id', 'name', 'birth_date', 'sex',
+            'netkeiba_horse_id', 'name', 'birth_date', 'sex',
             'sire_name', 'sire_id', 'dam_name', 'dam_id',
             'trainer_name', 'trainer_id', 'owner', 'breeder',
             'total_races', 'total_wins', 'total_places', 'total_shows',
@@ -23,7 +23,7 @@ class TestHorseProfileParsing:
 
         # Mock profile data
         profile = {
-            'jra_horse_id': 'TEST123',
+            'netkeiba_horse_id': 'TEST123',
             'name': 'テストホース',
             'birth_date': datetime(2020, 4, 1),
             'sex': '牡',

@@ -49,7 +49,7 @@ def _create_sample_data():
 
     # Create past race (for historical stats)
     past_race = Race(
-        jra_race_id='2024010101',
+        netkeiba_race_id='2024010101',
         track_id=track.id,
         race_date=(datetime.utcnow() - timedelta(days=30)).date(),
         race_number=1,
@@ -108,7 +108,7 @@ def _create_sample_data():
 
     # Create current race (for prediction)
     current_race = Race(
-        jra_race_id='2024020101',
+        netkeiba_race_id='2024020101',
         track_id=track.id,
         race_date=datetime.utcnow().date(),
         race_number=1,

@@ -71,7 +71,7 @@ def sample_track(test_db):
 def sample_jockey(test_db):
     """Create a sample jockey."""
     jockey = Jockey(
-        jra_jockey_id='J12345',
+        netkeiba_jockey_id='J12345',
         name='テスト騎手',
         weight=52.0
     )
@@ -84,7 +84,7 @@ def sample_jockey(test_db):
 def sample_trainer(test_db):
     """Create a sample trainer."""
     trainer = Trainer(
-        jra_trainer_id='T12345',
+        netkeiba_trainer_id='T12345',
         name='テスト調教師',
         stable='美浦'
     )
@@ -97,7 +97,7 @@ def sample_trainer(test_db):
 def sample_horse(test_db, sample_trainer):
     """Create a sample horse."""
     horse = Horse(
-        jra_horse_id='H12345',
+        netkeiba_horse_id='H12345',
         name='テストホース',
         birth_date=date(2020, 3, 15),
         sex='牡',
@@ -112,7 +112,7 @@ def sample_horse(test_db, sample_trainer):
 def sample_race(test_db, sample_track):
     """Create a sample race."""
     race = Race(
-        jra_race_id='2024010101',
+        netkeiba_race_id='2024010101',
         track_id=sample_track.id,
         race_date=date(2024, 1, 1),
         race_number=1,
@@ -192,7 +192,7 @@ def multiple_races(test_db, sample_track):
     races = []
     for i in range(1, 6):
         race = Race(
-            jra_race_id=f'202401010{i}',
+            netkeiba_race_id=f'202401010{i}',
             track_id=sample_track.id,
             race_date=date(2024, 1, 1),
             race_number=i,

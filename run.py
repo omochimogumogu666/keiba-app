@@ -15,8 +15,9 @@ app = create_app()
 if __name__ == '__main__':
     # Get environment variables
     # Force localhost binding for security (personal use)
-    host = os.getenv('FLASK_HOST', '127.0.0.1')
-    port = int(os.getenv('FLASK_PORT', 5000))
+    # Docker内では0.0.0.0、ローカル実行時は127.0.0.1
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', 5001))
     debug = os.getenv('FLASK_ENV', 'development') == 'development'
 
     # Security warning if host is not localhost

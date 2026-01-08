@@ -1,14 +1,33 @@
 """
 Database connection and session management.
+
+Provides get-or-create functions and save operations for scraped data.
 """
 from contextlib import contextmanager
+from datetime import datetime, time
+from typing import Any, Dict, List, Optional, TypeVar
+
+from sqlalchemy.exc import SQLAlchemyError
+
 from src.data.models import db
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
 
+# Type variable for generic model types
+T = TypeVar('T')
 
-def init_db(app):
+
+# Constants for race status
+class RaceStatus:
+    """Race status constants."""
+    UPCOMING = 'upcoming'
+    IN_PROGRESS = 'in_progress'
+    COMPLETED = 'completed'
+    CANCELLED = 'cancelled'
+
+
+def init_db(app) -> None:
     """
     Initialize database with Flask app.
 
@@ -21,6 +40,32 @@ def init_db(app):
         logger.info("Database initialized successfully")
 
 
+def _parse_post_time(post_time_value: Any) -> Optional[time]:
+    """
+    Parse post time from various formats.
+
+    Args:
+        post_time_value: Post time as string ('HH:MM') or time object
+
+    Returns:
+        time object or None if parsing fails
+    """
+    if not post_time_value:
+        return None
+
+    if isinstance(post_time_value, time):
+        return post_time_value
+
+    if isinstance(post_time_value, str):
+        try:
+            return datetime.strptime(post_time_value, '%H:%M').time()
+        except ValueError:
+            logger.warning(f"Invalid post_time format: {post_time_value}")
+            return None
+
+    return None
+
+
 @contextmanager
 def get_session():
     """
@@ -29,19 +74,21 @@ def get_session():
     Usage:
         with get_session() as session:
             session.query(Horse).all()
+
+    Note:
+        Flask-SQLAlchemy manages session lifecycle, so we don't close
+        the session explicitly. The session is scoped to the request.
     """
     try:
         yield db.session
         db.session.commit()
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.session.rollback()
         logger.error(f"Database session error: {e}")
         raise
-    finally:
-        db.session.close()
 
 
-def save_to_db(obj):
+def save_to_db(obj: T) -> T:
     """
     Save object to database.
 
@@ -50,19 +97,22 @@ def save_to_db(obj):
 
     Returns:
         Saved object
+
+    Raises:
+        SQLAlchemyError: If database operation fails
     """
     try:
         db.session.add(obj)
         db.session.commit()
         logger.debug(f"Saved to database: {obj}")
         return obj
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.session.rollback()
         logger.error(f"Error saving to database: {e}")
         raise
 
 
-def bulk_save_to_db(objects):
+def bulk_save_to_db(objects: List[T]) -> int:
     """
     Bulk save objects to database.
 
@@ -71,6 +121,9 @@ def bulk_save_to_db(objects):
 
     Returns:
         Number of objects saved
+
+    Raises:
+        SQLAlchemyError: If database operation fails
     """
     try:
         db.session.bulk_save_objects(objects)
@@ -78,24 +131,27 @@ def bulk_save_to_db(objects):
         count = len(objects)
         logger.info(f"Bulk saved {count} objects to database")
         return count
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.session.rollback()
         logger.error(f"Error bulk saving to database: {e}")
         raise
 
 
-def delete_from_db(obj):
+def delete_from_db(obj: T) -> None:
     """
     Delete object from database.
 
     Args:
         obj: SQLAlchemy model instance
+
+    Raises:
+        SQLAlchemyError: If database operation fails
     """
     try:
         db.session.delete(obj)
         db.session.commit()
         logger.debug(f"Deleted from database: {obj}")
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.session.rollback()
         logger.error(f"Error deleting from database: {e}")
         raise
@@ -209,37 +265,41 @@ def get_or_create_trainer(netkeiba_trainer_id, name=None, **kwargs):
 
 # Scraped data saving functions
 
-def save_race_to_db(race_data):
+def save_race_to_db(race_data: Dict[str, Any]) -> 'Race':
     """
     Save race data to database.
 
     Args:
-        race_data: Dictionary with race information
+        race_data: Dictionary with race information. Required keys:
+            - 'netkeiba_race_id': Unique race identifier
+            - 'track': Track name (string)
+            - 'race_date': Race date
 
     Returns:
         Race instance
+
+    Raises:
+        KeyError: If required keys are missing
+        SQLAlchemyError: If database operation fails
     """
     from src.data.models import Race
 
+    # Validate required fields
+    required_keys = ['netkeiba_race_id', 'track', 'race_date']
+    for key in required_keys:
+        if key not in race_data:
+            raise KeyError(f"Missing required key in race_data: {key}")
+
     # Get or create track
     track = get_or_create_track(race_data['track'])
+
+    # Parse post_time using helper function
+    post_time = _parse_post_time(race_data.get('post_time'))
 
     # Check if race already exists by netkeiba ID
     race = Race.query.filter_by(netkeiba_race_id=race_data['netkeiba_race_id']).first()
 
     if not race:
-        # Parse post_time if provided as string
-        post_time = None
-        if race_data.get('post_time'):
-            if isinstance(race_data['post_time'], str):
-                from datetime import datetime
-                try:
-                    post_time = datetime.strptime(race_data['post_time'], '%H:%M').time()
-                except ValueError:
-                    logger.warning(f"Invalid post_time format: {race_data['post_time']}")
-            else:
-                post_time = race_data['post_time']
-
         race = Race(
             netkeiba_race_id=race_data['netkeiba_race_id'],
             track_id=track.id,
@@ -250,7 +310,7 @@ def save_race_to_db(race_data):
             distance=race_data.get('distance'),
             surface=race_data.get('surface', 'turf'),
             race_class=race_data.get('race_class'),
-            status=race_data.get('status', 'upcoming'),
+            status=race_data.get('status', RaceStatus.UPCOMING),
             kaisai_code=race_data.get('kaisai_code'),
             meeting_number=race_data.get('meeting_number'),
             day_number=race_data.get('day_number'),
@@ -267,18 +327,8 @@ def save_race_to_db(race_data):
         # Update existing race
         race.track_id = track.id
         race.race_date = race_data['race_date']
-
-        # Update post_time if provided
-        if race_data.get('post_time'):
-            if isinstance(race_data['post_time'], str):
-                from datetime import datetime
-                try:
-                    race.post_time = datetime.strptime(race_data['post_time'], '%H:%M').time()
-                except ValueError:
-                    logger.warning(f"Invalid post_time format: {race_data['post_time']}")
-            else:
-                race.post_time = race_data['post_time']
-
+        if post_time:
+            race.post_time = post_time
         race.race_number = race_data.get('race_number', race.race_number)
         race.race_name = race_data.get('race_name', race.race_name)
         race.distance = race_data.get('distance', race.distance)

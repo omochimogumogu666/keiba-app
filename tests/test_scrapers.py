@@ -158,6 +158,7 @@ class TestValidateJRAId:
         assert validate_jra_id(None, 'race') is False
 
 
+@pytest.mark.skip(reason="JRAScraper is deprecated, use NetkeibaScraper instead")
 class TestJRAScraper:
     """Tests for JRAScraper class."""
 

@@ -169,10 +169,10 @@ echo -e "${GREEN}[完了] 起動成功!${NC}"
 echo "================================================"
 echo ""
 echo "[アプリケーションURL]"
-echo "   http://localhost:5000"
+echo "   http://localhost:5001"
 echo ""
 echo "[管理画面]"
-echo "   http://localhost:5000/admin/"
+echo "   http://localhost:5001/admin/"
 echo ""
 echo "[便利なコマンド]"
 echo "   ログ確認: docker compose logs -f web"
@@ -191,12 +191,12 @@ read -p "ブラウザを開きますか? (y/N): " OPEN_BROWSER
 if [[ "$OPEN_BROWSER" =~ ^[Yy]$ ]]; then
     echo "ブラウザを開いています..."
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        open http://localhost:5000
+        open http://localhost:5001
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        xdg-open http://localhost:5000 2>/dev/null || echo "http://localhost:5000 を手動で開いてください"
+        xdg-open http://localhost:5001 2>/dev/null || echo "http://localhost:5001 を手動で開いてください"
     fi
 else
-    echo "http://localhost:5000 を手動で開いてください"
+    echo "http://localhost:5001 を手動で開いてください"
 fi
 
 echo ""

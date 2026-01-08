@@ -16,7 +16,8 @@
       "Bash(pytest:*)",
       "Bash(dir:*)",
       "Bash(docker compose logs:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(find:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

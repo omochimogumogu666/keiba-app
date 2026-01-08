@@ -104,7 +104,7 @@ def get_races():
     # Format response
     races = [{
         'id': race.id,
-        'jra_race_id': race.jra_race_id,
+        'netkeiba_race_id': race.netkeiba_race_id,
         'race_name': race.race_name,
         'race_number': race.race_number,
         'race_date': race.race_date.isoformat() if race.race_date else None,
@@ -140,7 +140,7 @@ def get_race(race_id):
 
     race_data = {
         'id': race.id,
-        'jra_race_id': race.jra_race_id,
+        'netkeiba_race_id': race.netkeiba_race_id,
         'race_name': race.race_name,
         'race_number': race.race_number,
         'race_date': race.race_date.isoformat() if race.race_date else None,
@@ -168,17 +168,17 @@ def get_race(race_id):
             'horse': {
                 'id': entry.horse.id,
                 'name': entry.horse.name,
-                'jra_horse_id': entry.horse.jra_horse_id
+                'netkeiba_horse_id': entry.horse.netkeiba_horse_id
             } if entry.horse else None,
             'jockey': {
                 'id': entry.jockey.id,
                 'name': entry.jockey.name,
-                'jra_jockey_id': entry.jockey.jra_jockey_id
+                'netkeiba_jockey_id': entry.jockey.netkeiba_jockey_id
             } if entry.jockey else None,
             'trainer': {
                 'id': entry.horse.trainer.id,
                 'name': entry.horse.trainer.name,
-                'jra_trainer_id': entry.horse.trainer.jra_trainer_id
+                'netkeiba_trainer_id': entry.horse.trainer.netkeiba_trainer_id
             } if entry.horse and entry.horse.trainer else None,
             'weight': entry.weight,
             'horse_weight': entry.horse_weight,
@@ -257,7 +257,7 @@ def get_horses():
     # Format response
     horses = [{
         'id': horse.id,
-        'jra_horse_id': horse.jra_horse_id,
+        'netkeiba_horse_id': horse.netkeiba_horse_id,
         'name': horse.name,
         'birth_date': horse.birth_date.isoformat() if horse.birth_date else None,
         'sex': horse.sex
@@ -283,7 +283,7 @@ def get_horse(horse_id):
 
     horse_data = {
         'id': horse.id,
-        'jra_horse_id': horse.jra_horse_id,
+        'netkeiba_horse_id': horse.netkeiba_horse_id,
         'name': horse.name,
         'birth_date': horse.birth_date.isoformat() if horse.birth_date else None,
         'sex': horse.sex,
@@ -379,7 +379,7 @@ def get_jockeys():
     # Format response
     jockeys = [{
         'id': jockey.id,
-        'jra_jockey_id': jockey.jra_jockey_id,
+        'netkeiba_jockey_id': jockey.netkeiba_jockey_id,
         'name': jockey.name
     } for jockey in result['data']]
 
@@ -403,7 +403,7 @@ def get_jockey(jockey_id):
 
     jockey_data = {
         'id': jockey.id,
-        'jra_jockey_id': jockey.jra_jockey_id,
+        'netkeiba_jockey_id': jockey.netkeiba_jockey_id,
         'name': jockey.name
     }
 
@@ -496,7 +496,7 @@ def get_trainers():
     # Format response
     trainers = [{
         'id': trainer.id,
-        'jra_trainer_id': trainer.jra_trainer_id,
+        'netkeiba_trainer_id': trainer.netkeiba_trainer_id,
         'name': trainer.name,
         'stable': trainer.stable
     } for trainer in result['data']]
@@ -521,7 +521,7 @@ def get_trainer(trainer_id):
 
     trainer_data = {
         'id': trainer.id,
-        'jra_trainer_id': trainer.jra_trainer_id,
+        'netkeiba_trainer_id': trainer.netkeiba_trainer_id,
         'name': trainer.name,
         'stable': trainer.stable
     }

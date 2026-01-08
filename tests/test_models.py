@@ -49,7 +49,7 @@ class TestJockey:
     def test_create_jockey(self, test_db):
         """Test creating a jockey."""
         jockey = Jockey(
-            jra_jockey_id='J99999',
+            netkeiba_jockey_id='J99999',
             name='新人騎手',
             weight=50.0
         )
@@ -63,7 +63,7 @@ class TestJockey:
     def test_jockey_unique_id(self, test_db, sample_jockey):
         """Test jockey JRA ID uniqueness."""
         duplicate_jockey = Jockey(
-            jra_jockey_id='J12345',  # Same as sample_jockey
+            netkeiba_jockey_id='J12345',  # Same as sample_jockey
             name='別の騎手'
         )
         test_db.session.add(duplicate_jockey)
@@ -78,7 +78,7 @@ class TestTrainer:
     def test_create_trainer(self, test_db):
         """Test creating a trainer."""
         trainer = Trainer(
-            jra_trainer_id='T99999',
+            netkeiba_trainer_id='T99999',
             name='新人調教師',
             stable='栗東'
         )
@@ -96,7 +96,7 @@ class TestHorse:
     def test_create_horse(self, test_db, sample_trainer):
         """Test creating a horse."""
         horse = Horse(
-            jra_horse_id='H99999',
+            netkeiba_horse_id='H99999',
             name='テスト馬',
             birth_date=date(2021, 4, 1),
             sex='牝',
@@ -114,14 +114,14 @@ class TestHorse:
         """Test horse with sire and dam."""
         # Create sire and dam
         sire = Horse(
-            jra_horse_id='H_SIRE',
+            netkeiba_horse_id='H_SIRE',
             name='父馬',
             birth_date=date(2015, 3, 1),
             sex='牡',
             trainer_id=sample_trainer.id
         )
         dam = Horse(
-            jra_horse_id='H_DAM',
+            netkeiba_horse_id='H_DAM',
             name='母馬',
             birth_date=date(2016, 4, 1),
             sex='牝',
@@ -132,7 +132,7 @@ class TestHorse:
 
         # Create offspring
         offspring = Horse(
-            jra_horse_id='H_OFFSPRING',
+            netkeiba_horse_id='H_OFFSPRING',
             name='子馬',
             birth_date=date(2021, 5, 1),
             sex='牡',
@@ -158,7 +158,7 @@ class TestRace:
     def test_create_race(self, test_db, sample_track):
         """Test creating a race."""
         race = Race(
-            jra_race_id='2024020201',
+            netkeiba_race_id='2024020201',
             track_id=sample_track.id,
             race_date=date(2024, 2, 2),
             race_number=5,
@@ -277,7 +277,7 @@ class TestPrediction:
         horses = []
         for i in range(3):
             horse = Horse(
-                jra_horse_id=f'H_PRED_{i}',
+                netkeiba_horse_id=f'H_PRED_{i}',
                 name=f'予想馬{i}',
                 birth_date=date(2020, 3, 1),
                 sex='牡'
@@ -313,7 +313,7 @@ class TestRelationships:
         races = []
         for i in range(3):
             race = Race(
-                jra_race_id=f'202403030{i}',
+                netkeiba_race_id=f'202403030{i}',
                 track_id=sample_race.track_id,
                 race_date=date(2024, 3, 3),
                 race_number=i + 1,

@@ -37,7 +37,7 @@ def sample_data(app):
 
         # Create race
         race = Race(
-            jra_race_id='2026010101011',
+            netkeiba_race_id='2026010101011',
             race_name='テストレース',
             race_number=1,
             race_date=date(2026, 1, 1),
@@ -51,7 +51,7 @@ def sample_data(app):
 
         # Create trainer first
         trainer = Trainer(
-            jra_trainer_id='01234',
+            netkeiba_trainer_id='01234',
             name='テスト調教師',
             stable='美浦'
         )
@@ -60,7 +60,7 @@ def sample_data(app):
 
         # Create horse
         horse = Horse(
-            jra_horse_id='2020000001',
+            netkeiba_horse_id='2020000001',
             name='テストホース',
             birth_date=None,
             sex='牡',
@@ -70,7 +70,7 @@ def sample_data(app):
 
         # Create jockey
         jockey = Jockey(
-            jra_jockey_id='01234',
+            netkeiba_jockey_id='01234',
             name='テスト騎手'
         )
         db.session.add(jockey)
