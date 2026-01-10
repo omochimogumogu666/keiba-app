@@ -17,7 +17,7 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <i class="bi bi-trophy"></i> JRA競馬予想
@@ -26,13 +26,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <form class="d-flex me-3" method="get" action="{{ url_for('search.search') }}">
-                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="検索..." aria-label="Search">
-                    <button class="btn btn-outline-light btn-sm" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </form>
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">
                             <i class="bi bi-house"></i> ホーム
@@ -64,12 +58,13 @@
                             </a></li>
                         </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.about') }}">
-                            <i class="bi bi-info-circle"></i> About
-                        </a>
-                    </li>
                 </ul>
+                <form class="d-flex" method="get" action="{{ url_for('search.search') }}">
+                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="検索..." aria-label="Search" style="width: 200px;">
+                    <button class="btn btn-outline-primary btn-sm" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </nav>
@@ -94,10 +89,10 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-dark text-white mt-5 py-4">
+    <footer class="mt-5">
         <div class="container text-center">
             <p class="mb-2">&copy; 2026 JRA競馬予想アプリ</p>
-            <p class="small text-muted mb-0">
+            <p class="mb-0">
                 免責事項: この予想は参考情報です。実際の馬券購入は自己責任で行ってください。
             </p>
         </div>

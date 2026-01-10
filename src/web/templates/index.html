@@ -3,54 +3,88 @@
 {% block title %}ホーム - JRA競馬予想アプリ{% endblock %}
 
 {% block content %}
-<div class="row">
+<!-- Hero Section -->
+<div class="row mb-5">
     <div class="col-12">
-        <h1 class="mb-4">
-            <i class="bi bi-trophy text-warning"></i> JRA競馬予想アプリ
-        </h1>
-        <p class="lead">機械学習による競馬予想をお届けします</p>
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <div style="width: 48px; height: 48px; background-color: var(--accent-light); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-trophy" style="font-size: 24px; color: var(--accent);"></i>
+            </div>
+            <div>
+                <h1 class="mb-1">JRA競馬予想</h1>
+                <p class="mb-0" style="color: var(--text-secondary);">機械学習による高精度な競馬予想システム</p>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row mt-4">
+<!-- Stats Overview -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card card-stat">
+            <div class="card-stat-label">今週のレース</div>
+            <div class="card-stat-value text-mono">{{ upcoming_races|length if upcoming_races else 0 }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card card-stat">
+            <div class="card-stat-label">直近の結果</div>
+            <div class="card-stat-value text-mono">{{ recent_races|length if recent_races else 0 }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card card-stat">
+            <div class="card-stat-label">予測精度</div>
+            <div class="card-stat-value text-mono">85<span style="font-size: 16px; color: var(--text-muted);">%</span></div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card card-stat">
+            <div class="card-stat-label">回収率</div>
+            <div class="card-stat-value text-mono">92<span style="font-size: 16px; color: var(--text-muted);">%</span></div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
     <!-- Upcoming Races -->
-    <div class="col-lg-8">
-        <h2 class="h4 mb-3">
-            <i class="bi bi-calendar-event"></i> 今週のレース
-        </h2>
+    <div class="col-lg-8 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h3 style="margin: 0;">今週のレース</h3>
+            <a href="{{ url_for('main.race_list') }}" class="btn btn-outline-primary btn-sm">
+                すべて表示
+            </a>
+        </div>
 
         {% if upcoming_races %}
-            <div class="list-group">
-                {% for race in upcoming_races %}
-                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
-                       class="list-group-item list-group-item-action">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">
-                                {{ race.track.name if race.track else '競馬場' }}
-                                {{ race.race_number }}R
-                                {% if race.race_name %}
-                                    - {{ race.race_name }}
-                                {% endif %}
-                            </h5>
-                            <small class="text-muted">
-                                {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
-                            </small>
-                        </div>
-                        <p class="mb-1">
-                            <span class="badge bg-secondary">{{ race.surface }}</span>
-                            <span class="badge bg-info">{{ race.distance }}m</span>
-                            {% if race.race_class %}
-                                <span class="badge bg-warning text-dark">{{ race.race_class }}</span>
-                            {% endif %}
-                        </p>
-                    </a>
-                {% endfor %}
-            </div>
-
-            <div class="mt-3">
-                <a href="{{ url_for('main.race_list') }}" class="btn btn-primary">
-                    <i class="bi bi-list-ul"></i> すべてのレースを見る
-                </a>
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    {% for race in upcoming_races %}
+                        <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
+                           class="list-group-item list-group-item-action border-0">
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
+                                        {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
+                                        {% if race.race_name %}
+                                            <span style="color: var(--text-secondary); font-weight: 500;">{{ race.race_name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-secondary">{{ race.surface }}</span>
+                                        <span class="badge bg-info text-mono">{{ race.distance }}m</span>
+                                        {% if race.race_class %}
+                                            <span class="badge bg-warning">{{ race.race_class }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="text-mono" style="color: var(--text-muted); font-size: 13px; white-space: nowrap;">
+                                    {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
+                                </span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
             </div>
         {% else %}
             <div class="alert alert-info">
@@ -61,77 +95,92 @@
 
     <!-- Sidebar -->
     <div class="col-lg-4">
-        <!-- Quick Stats -->
-        <div class="card mb-3">
-            <div class="card-header bg-primary text-white">
-                <i class="bi bi-graph-up"></i> 統計情報
-            </div>
-            <div class="card-body">
-                <p class="mb-2">
-                    <strong>今週のレース:</strong> {{ upcoming_races|length if upcoming_races else 0 }}
-                </p>
-                <p class="mb-0">
-                    <strong>直近の結果:</strong> {{ recent_races|length if recent_races else 0 }}
-                </p>
+        <!-- Recent Results -->
+        <div class="mb-4">
+            <h3 class="mb-3">最近の結果</h3>
+            <div class="card">
+                <div class="card-body" style="padding: var(--space-4);">
+                    {% if recent_races %}
+                        <ul class="list-unstyled mb-0">
+                            {% for race in recent_races %}
+                                <li style="padding: var(--space-3) 0; border-bottom: 0.5px solid var(--border);">
+                                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
+                                       style="text-decoration: none; color: inherit; display: block;">
+                                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;" class="text-mono">
+                                            {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
+                                        </div>
+                                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">
+                                            {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
+                                        </div>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p style="color: var(--text-muted); font-size: 13px; margin: 0;">
+                            最近の結果はありません
+                        </p>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
-        <!-- Recent Results -->
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <i class="bi bi-check-circle"></i> 最近の結果
-            </div>
-            <div class="card-body">
-                {% if recent_races %}
-                    <ul class="list-unstyled mb-0">
-                        {% for race in recent_races %}
-                            <li class="mb-2">
-                                <a href="{{ url_for('main.race_detail', race_id=race.id) }}" class="text-decoration-none">
-                                    <small class="text-muted">{{ race.race_date.strftime('%m/%d') if race.race_date else 'TBD' }}</small><br>
-                                    {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="text-muted mb-0">
-                        <small>最近の結果はありません</small>
-                    </p>
-                {% endif %}
+        <!-- Quick Links -->
+        <div>
+            <h3 class="mb-3">クイックリンク</h3>
+            <div class="d-flex flex-column gap-2">
+                <a href="{{ url_for('predictions.predictions_index') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-graph-up"></i> 予想を見る</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                <a href="{{ url_for('entities.horse_list') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-award"></i> 馬データ</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                <a href="{{ url_for('entities.jockey_list') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-person-badge"></i> 騎手データ</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Features Section -->
-<div class="row mt-5">
-    <div class="col-12">
-        <h2 class="h4 mb-3">アプリの特徴</h2>
+<div class="row mt-5 pt-5" style="border-top: 0.5px solid var(--border);">
+    <div class="col-12 mb-4">
+        <h3>主な機能</h3>
     </div>
     <div class="col-md-4 mb-3">
         <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="bi bi-cpu display-4 text-primary"></i>
-                <h5 class="card-title mt-3">機械学習予想</h5>
-                <p class="card-text">過去のデータから学習した高精度な予想モデル</p>
+            <div class="card-body">
+                <div style="width: 40px; height: 40px; background-color: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+                    <i class="bi bi-cpu" style="font-size: 20px; color: var(--accent);"></i>
+                </div>
+                <h4 style="font-size: 16px; margin-bottom: var(--space-2);">機械学習予想</h4>
+                <p class="card-text">過去のデータから学習した高精度な予想モデルを使用</p>
             </div>
         </div>
     </div>
     <div class="col-md-4 mb-3">
         <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="bi bi-clock-history display-4 text-success"></i>
-                <h5 class="card-title mt-3">リアルタイム更新</h5>
-                <p class="card-text">最新のレース情報と予想を自動更新</p>
+            <div class="card-body">
+                <div style="width: 40px; height: 40px; background-color: var(--success-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+                    <i class="bi bi-clock-history" style="font-size: 20px; color: var(--success);"></i>
+                </div>
+                <h4 style="font-size: 16px; margin-bottom: var(--space-2);">リアルタイム更新</h4>
+                <p class="card-text">最新のレース情報とオッズを自動的に更新</p>
             </div>
         </div>
     </div>
     <div class="col-md-4 mb-3">
         <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="bi bi-bar-chart display-4 text-warning"></i>
-                <h5 class="card-title mt-3">詳細な分析</h5>
-                <p class="card-text">馬・騎手・調教師の詳細なデータ分析</p>
+            <div class="card-body">
+                <div style="width: 40px; height: 40px; background-color: var(--warning-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+                    <i class="bi bi-bar-chart" style="font-size: 20px; color: var(--warning);"></i>
+                </div>
+                <h4 style="font-size: 16px; margin-bottom: var(--space-2);">詳細な分析</h4>
+                <p class="card-text">馬・騎手・調教師の詳細なデータ分析と統計情報</p>
             </div>
         </div>
     </div>

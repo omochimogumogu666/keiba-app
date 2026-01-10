@@ -1,0 +1,16 @@
+# ============================================================================
+# Production Requirements - 本番環境専用
+# ============================================================================
+
+# Base requirements
+-r requirements-base.txt
+
+# Production Server
+gunicorn==21.2.0  # WSGIサーバー
+gevent==24.2.1  # 非同期ワーカー
+
+# Monitoring & Logging
+sentry-sdk[flask]==1.40.0  # エラートラッキング
+
+# Performance
+redis==5.0.1  # キャッシュ・セッションストア用

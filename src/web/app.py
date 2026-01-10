@@ -1,8 +1,18 @@
 """
 Flask application factory.
+
+このモジュールはFlaskアプリケーションの初期化と設定を担当します。
+- CSRF保護（Flask-WTF）
+- APIレート制限（Flask-Limiter）
+- データベース初期化
+- キャッシュ設定
+- ブループリント登録
 """
 from flask import Flask, render_template
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config.settings import get_config
 from config.logging_config import setup_logging
 from src.data.models import db
@@ -11,6 +21,12 @@ from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
 migrate = Migrate()
+csrf = CSRFProtect()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 
 def create_app(config_name=None):
@@ -44,6 +60,12 @@ def create_app(config_name=None):
 
     # Initialize cache
     init_cache(app)
+
+    # Initialize CSRF protection
+    csrf.init_app(app)
+
+    # Initialize rate limiter
+    limiter.init_app(app)
 
     # Register blueprints
     register_blueprints(app)

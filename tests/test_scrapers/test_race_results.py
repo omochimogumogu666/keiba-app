@@ -99,6 +99,7 @@ def sample_results():
     ]
 
 
+@pytest.mark.integration
 class TestRaceResultSaving:
     """Test race result saving to database."""
 
@@ -223,6 +224,7 @@ class TestRaceResultParsing:
             assert isinstance(result['finish_position'], int)
 
 
+@pytest.mark.scraper
 @pytest.mark.integration
 class TestRaceResultScraping:
     """Integration tests for race result scraping."""

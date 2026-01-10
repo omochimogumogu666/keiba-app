@@ -1,10 +1,18 @@
 """
 Test script to explore netkeiba.com API endpoints.
+
+このスクリプトはnetkeiba.comのURL構造とAPIエンドポイントを調査します。
+- レース一覧ページへの直接アクセス
+- カレンダーページの構造分析
+- モバイルサイトの調査
+- HTML内のrace_id抽出
+
 The HTML shows that race data is loaded via JavaScript APIs.
 """
 import requests
 from datetime import datetime
 import json
+import re
 
 BASE_URL = "https://race.netkeiba.com"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -53,8 +61,10 @@ def test_race_list_direct():
                 else:
                     print(f"  ✗ No race_id found - data likely loaded via JS")
 
-        except Exception as e:
-            print(f"  Error: {e}")
+        except requests.RequestException as e:
+            print(f"  Network Error: {e}")
+        except (ValueError, KeyError) as e:
+            print(f"  Data Parsing Error: {e}")
 
 
 def test_calendar_page_with_date_range():
@@ -140,8 +150,10 @@ def test_specific_track_date():
                 else:
                     print(f"  ✗ No race IDs found")
 
-        except Exception as e:
-            print(f"  Error: {e}")
+        except requests.RequestException as e:
+            print(f"  Network Error: {e}")
+        except (ValueError, KeyError) as e:
+            print(f"  Data Parsing Error: {e}")
 
 
 def check_mobile_site():
@@ -168,7 +180,7 @@ def check_mobile_site():
             # Mobile site might use Shift-JIS or EUC-JP
             try:
                 content = response.content.decode('euc-jp', errors='replace')
-            except:
+            except (UnicodeDecodeError, AttributeError):
                 content = response.text
 
             # Save

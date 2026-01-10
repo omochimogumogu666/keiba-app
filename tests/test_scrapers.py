@@ -11,6 +11,7 @@ from src.scrapers.utils import (
 )
 
 
+@pytest.mark.unit
 class TestParseJapaneseNumber:
     """Tests for parse_japanese_number function."""
 
@@ -45,6 +46,7 @@ class TestParseJapaneseNumber:
         assert parse_japanese_number('???') is None
 
 
+@pytest.mark.unit
 class TestParseDistance:
     """Tests for parse_distance function."""
 
@@ -74,6 +76,7 @@ class TestParseDistance:
         assert parse_distance('abc') is None
 
 
+@pytest.mark.unit
 class TestParseTime:
     """Tests for parse_time function."""
 
@@ -100,6 +103,7 @@ class TestParseTime:
         assert parse_time('1:2:3') is None
 
 
+@pytest.mark.unit
 class TestCleanText:
     """Tests for clean_text function."""
 
@@ -128,6 +132,7 @@ class TestCleanText:
         assert clean_text('normal text') == 'normal text'
 
 
+@pytest.mark.unit
 class TestValidateJRAId:
     """Tests for validate_jra_id function."""
 
@@ -214,6 +219,7 @@ class TestJRAScraper:
         assert isinstance(result, list)
 
 
+@pytest.mark.unit
 class TestRetryDecorator:
     """Tests for retry_on_failure decorator."""
 

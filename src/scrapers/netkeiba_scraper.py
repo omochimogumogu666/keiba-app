@@ -248,23 +248,29 @@ class NetkeibaScraper:
 
         return None
 
-    def scrape_race_calendar(self, date: datetime) -> List[Dict]:
+    def scrape_race_calendar(self, date) -> List[Dict]:
         """
         Scrape race calendar for a specific date.
 
         Uses mobile site because PC version loads race list via JavaScript.
 
         Args:
-            date: Date to scrape races for
+            date: Date to scrape races for (datetime or date object)
 
         Returns:
             List of race dictionaries with basic info
         """
+        # Convert to date if datetime
+        if isinstance(date, datetime):
+            race_date = date.date()
+        else:
+            race_date = date
+
         # Use mobile site - it has static HTML with race_id links
         url = f"{self.MOBILE_URL}/"
-        params = {'pid': 'race_list', 'kaisai_date': date.strftime('%Y%m%d')}
+        params = {'pid': 'race_list', 'kaisai_date': race_date.strftime('%Y%m%d')}
 
-        logger.info(f"Scraping race calendar for {date.strftime('%Y-%m-%d')}")
+        logger.info(f"Scraping race calendar for {race_date.strftime('%Y-%m-%d')}")
 
         response = self._make_request(url, params)
         if not response:
@@ -316,7 +322,7 @@ class NetkeibaScraper:
                 race_info = {
                     'netkeiba_race_id': race_id,
                     'track': track_name,
-                    'race_date': date.date(),
+                    'race_date': race_date,
                     'race_number': race_number,
                     'kaisai_code': kaisai_code,
                     'meeting_number': meeting_number,

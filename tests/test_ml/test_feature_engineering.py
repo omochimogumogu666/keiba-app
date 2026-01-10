@@ -351,7 +351,7 @@ class TestFeatureExtractor:
             assert features['horse_total_races'] == 0
 
 
-@pytest.mark.unit
+@pytest.mark.integration
 def test_save_and_load_features(app, tmp_path):
     """Test saving and loading features to/from CSV."""
     with app.app_context():

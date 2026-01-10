@@ -9,6 +9,7 @@ from config.settings import (
 )
 
 
+@pytest.mark.unit
 class TestBaseConfig:
     """Tests for base Config class."""
 
@@ -49,6 +50,7 @@ class TestBaseConfig:
         assert Config.LOG_FILE is not None
 
 
+@pytest.mark.unit
 class TestDevelopmentConfig:
     """Tests for Development configuration."""
 
@@ -66,6 +68,7 @@ class TestDevelopmentConfig:
         assert hasattr(DevelopmentConfig, 'SCRAPING_DELAY')
 
 
+@pytest.mark.unit
 class TestProductionConfig:
     """Tests for Production configuration."""
 
@@ -83,6 +86,7 @@ class TestProductionConfig:
         assert hasattr(ProductionConfig, 'SCRAPING_DELAY')
 
 
+@pytest.mark.unit
 class TestTestingConfig:
     """Tests for Testing configuration."""
 
@@ -100,6 +104,7 @@ class TestTestingConfig:
         assert hasattr(TestingConfig, 'SCRAPING_DELAY')
 
 
+@pytest.mark.unit
 class TestGetConfig:
     """Tests for get_config function."""
 
@@ -132,6 +137,7 @@ class TestGetConfig:
         assert config == DevelopmentConfig  # Should return default
 
 
+@pytest.mark.unit
 class TestConfigEnvironmentVariables:
     """Tests for environment variable loading."""
 
@@ -153,6 +159,7 @@ class TestConfigEnvironmentVariables:
         assert os.getenv('LOG_LEVEL') == 'DEBUG'
 
 
+@pytest.mark.unit
 class TestConfigInitApp:
     """Tests for Config.init_app method."""
 
@@ -181,6 +188,7 @@ class TestConfigInitApp:
         assert TempConfig.LOG_FILE.parent.exists()
 
 
+@pytest.mark.unit
 class TestConfigValues:
     """Tests for specific configuration values."""
 

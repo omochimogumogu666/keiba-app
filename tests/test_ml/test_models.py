@@ -258,7 +258,7 @@ class TestXGBoostRaceModel:
         assert isinstance(predictions, np.ndarray)
 
 
-@pytest.mark.unit
+@pytest.mark.integration
 def test_model_not_installed():
     """Test that proper error is raised when XGBoost not installed."""
     if XGBOOST_AVAILABLE:

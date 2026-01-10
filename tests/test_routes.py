@@ -6,6 +6,7 @@ import json
 from datetime import date
 
 
+@pytest.mark.integration
 class TestMainRoutes:
     """Tests for main routes."""
 
@@ -79,6 +80,7 @@ class TestMainRoutes:
         assert 'About' in response.data.decode('utf-8')
 
 
+@pytest.mark.integration
 class TestPredictionRoutes:
     """Tests for prediction routes."""
 
@@ -154,6 +156,7 @@ class TestPredictionRoutes:
         assert response.status_code == 200
 
 
+@pytest.mark.integration
 class TestErrorHandlers:
     """Tests for error handlers."""
 
@@ -170,6 +173,7 @@ class TestErrorHandlers:
         assert 'ページが見つかりません' in data or '404' in data
 
 
+@pytest.mark.integration
 class TestStaticFiles:
     """Tests for static files."""
 
@@ -186,6 +190,7 @@ class TestStaticFiles:
         assert response.status_code in [200, 404]
 
 
+@pytest.mark.integration
 class TestRaceEntryDisplay:
     """Tests for race entry display in templates."""
 
@@ -225,6 +230,7 @@ class TestRaceEntryDisplay:
             assert f'テスト馬{i}' in data
 
 
+@pytest.mark.integration
 class TestDatabaseQueries:
     """Tests for database query efficiency."""
 

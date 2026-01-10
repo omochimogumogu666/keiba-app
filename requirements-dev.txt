@@ -1,0 +1,26 @@
+# ============================================================================
+# Development Requirements - 開発環境専用
+# ============================================================================
+
+# Base requirements
+-r requirements-base.txt
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+responses==0.24.1  # HTTPモックテスト用
+
+# Code Quality
+black==23.12.1
+flake8==7.0.0
+mypy==1.8.0  # 型チェック
+isort==5.13.2  # import整理
+
+# Security Analysis
+safety==3.0.1  # 脆弱性スキャン
+bandit==1.7.6  # セキュリティ静的解析
+
+# Development Tools
+ipython==8.19.0  # REPL
+ipdb==0.13.13  # デバッガー

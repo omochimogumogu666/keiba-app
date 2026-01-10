@@ -1,127 +1,482 @@
-/* Custom styles for JRA Horse Racing Prediction App */
+/*
+ * JRA競馬予想アプリ - カスタムスタイル
+ * デザインコンセプト: Data & Analysis + Sophistication & Trust
+ * インスピレーション: Linear, Stripe, Notion
+ */
 
+/* ============================================
+   カラーシステム - クールニュートラル基盤
+   ============================================ */
 :root {
-    --primary-color: #0d6efd;
-    --secondary-color: #6c757d;
-    --success-color: #198754;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    --info-color: #0dcaf0;
+    /* 背景色 */
+    --bg-base: #ffffff;
+    --bg-subtle: #f8fafc;
+    --bg-muted: #f1f5f9;
+
+    /* 文字色階層 */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-faint: #cbd5e1;
+
+    /* ボーダー */
+    --border: rgba(15, 23, 42, 0.08);
+    --border-subtle: rgba(15, 23, 42, 0.04);
+    --border-strong: rgba(15, 23, 42, 0.12);
+
+    /* アクセントカラー - インディゴブルー（信頼感） */
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-light: #eef2ff;
+    --accent-subtle: #f5f8ff;
+
+    /* セマンティックカラー */
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --info: #3b82f6;
+    --info-light: #dbeafe;
+
+    /* シャドウ - 微細 */
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 8px rgba(15, 23, 42, 0.04);
+
+    /* スペーシング - 4pxグリッド */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* ボーダーラジアス */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* トランジション */
+    --transition-fast: 150ms cubic-bezier(0.25, 1, 0.5, 1);
+    --transition-base: 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ============================================
+   基本レイアウト
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+    box-sizing: border-box;
 }
 
 body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-subtle);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 main {
     flex: 1;
 }
 
-/* Navbar */
-.navbar-brand {
-    font-weight: bold;
-    font-size: 1.3rem;
+/* ============================================
+   タイポグラフィ
+   ============================================ */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin-bottom: var(--space-4);
 }
 
-/* Cards */
+h1 { font-size: 32px; line-height: 1.2; }
+h2 { font-size: 24px; line-height: 1.3; }
+h3 { font-size: 18px; line-height: 1.4; }
+h4 { font-size: 16px; line-height: 1.4; }
+
+.text-mono {
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   ナビゲーション
+   ============================================ */
+.navbar {
+    background-color: var(--bg-base) !important;
+    border-bottom: 0.5px solid var(--border);
+    padding: var(--space-3) 0;
+    box-shadow: none;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.01em;
+}
+
+.nav-link {
+    color: var(--text-secondary) !important;
+    font-size: 13px;
+    font-weight: 500;
+    padding: var(--space-2) var(--space-3) !important;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.nav-link:hover {
+    color: var(--text-primary) !important;
+    background-color: var(--bg-subtle);
+}
+
+.nav-link.active {
+    color: var(--accent) !important;
+    background-color: var(--accent-subtle);
+}
+
+.dropdown-menu {
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.dropdown-item {
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font-size: 13px;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.dropdown-item:hover {
+    background-color: var(--bg-subtle);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   カード
+   ============================================ */
 .card {
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    transition: transform 0.2s, box-shadow 0.2s;
+    background-color: var(--bg-base);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+    overflow: hidden;
 }
 
 .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
 }
 
-/* List groups */
+.card-header {
+    background-color: var(--bg-subtle);
+    border-bottom: 0.5px solid var(--border);
+    padding: var(--space-4);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.card-body {
+    padding: var(--space-6);
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+
+.card-text {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* データカード - 特殊なレイアウト */
+.card-stat {
+    padding: var(--space-6);
+}
+
+.card-stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: var(--space-2);
+}
+
+.card-stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   リストグループ
+   ============================================ */
+.list-group {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
 .list-group-item {
-    transition: background-color 0.2s;
+    border: 0.5px solid var(--border);
+    border-width: 0 0 0.5px 0;
+    background-color: var(--bg-base);
+    padding: var(--space-4);
+    transition: background-color var(--transition-fast);
+}
+
+.list-group-item:first-child {
+    border-top-width: 0;
+}
+
+.list-group-item:last-child {
+    border-bottom-width: 0;
 }
 
 .list-group-item:hover {
-    background-color: #f8f9fa;
+    background-color: var(--bg-subtle);
 }
 
-/* Tables */
+.list-group-item-action {
+    cursor: pointer;
+}
+
+/* ============================================
+   テーブル
+   ============================================ */
+.table {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.table thead th {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--bg-subtle);
+}
+
+.table tbody td {
+    padding: var(--space-4);
+    border-bottom: 0.5px solid var(--border);
+    vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
 .table-hover tbody tr:hover {
-    background-color: rgba(0, 0, 0, 0.025);
+    background-color: var(--bg-subtle);
 }
 
-/* Badges */
+/* ============================================
+   バッジ
+   ============================================ */
 .badge {
-    font-weight: 500;
-    padding: 0.375rem 0.625rem;
+    font-size: 11px;
+    font-weight: 600;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
 }
 
-/* Buttons */
+.badge.bg-primary { background-color: var(--accent) !important; }
+.badge.bg-success { background-color: var(--success) !important; }
+.badge.bg-warning { background-color: var(--warning) !important; color: var(--text-primary) !important; }
+.badge.bg-danger { background-color: var(--danger) !important; }
+.badge.bg-info { background-color: var(--info) !important; }
+.badge.bg-secondary { background-color: var(--text-muted) !important; }
+
+/* ============================================
+   ボタン
+   ============================================ */
 .btn {
-    transition: all 0.2s;
+    font-size: 13px;
+    font-weight: 500;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-sm);
+    border: none;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
 }
 
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+.btn-primary {
+    background-color: var(--accent);
+    color: white;
 }
 
-/* Footer */
-footer {
-    margin-top: auto;
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+    box-shadow: var(--shadow-sm);
 }
 
-/* Custom utilities */
-.text-primary-dark {
-    color: #0a58ca;
+.btn-outline-primary {
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    background-color: transparent;
 }
 
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+.btn-outline-primary:hover {
+    background-color: var(--bg-subtle);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
 }
 
-/* Prediction cards */
+.btn-sm {
+    font-size: 12px;
+    padding: var(--space-1) var(--space-3);
+}
+
+.btn-lg {
+    font-size: 14px;
+    padding: var(--space-3) var(--space-6);
+}
+
+/* ============================================
+   フォーム
+   ============================================ */
+.form-control {
+    font-size: 13px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.form-control:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+    outline: none;
+}
+
+.form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+}
+
+/* ============================================
+   アラート
+   ============================================ */
+.alert {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-size: 13px;
+}
+
+.alert-info {
+    background-color: var(--info-light);
+    border-color: var(--info);
+    color: var(--text-primary);
+}
+
+.alert-success {
+    background-color: var(--success-light);
+    border-color: var(--success);
+    color: var(--text-primary);
+}
+
+.alert-warning {
+    background-color: var(--warning-light);
+    border-color: var(--warning);
+    color: var(--text-primary);
+}
+
+.alert-danger {
+    background-color: var(--danger-light);
+    border-color: var(--danger);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   予測カード
+   ============================================ */
 .prediction-card {
-    border-left: 4px solid var(--primary-color);
+    border-left: 3px solid var(--accent);
 }
 
 .prediction-card.high-confidence {
-    border-left-color: var(--success-color);
+    border-left-color: var(--success);
 }
 
 .prediction-card.medium-confidence {
-    border-left-color: var(--warning-color);
+    border-left-color: var(--warning);
 }
 
 .prediction-card.low-confidence {
-    border-left-color: var(--secondary-color);
+    border-left-color: var(--text-muted);
 }
 
-/* Race status indicators */
-.race-status-upcoming {
-    color: var(--info-color);
+/* ============================================
+   ステータスインジケーター
+   ============================================ */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: var(--space-2);
 }
 
-.race-status-completed {
-    color: var(--success-color);
+.status-dot.upcoming { background-color: var(--info); }
+.status-dot.completed { background-color: var(--success); }
+.status-dot.cancelled { background-color: var(--text-muted); }
+
+/* ============================================
+   フッター
+   ============================================ */
+footer {
+    margin-top: auto;
+    background-color: var(--bg-base);
+    border-top: 0.5px solid var(--border);
+    padding: var(--space-8) 0;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .navbar-brand {
-        font-size: 1.1rem;
-    }
-
-    .card-body {
-        padding: 1rem;
-    }
-
-    .table {
-        font-size: 0.875rem;
-    }
+footer p {
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
-/* Loading spinner */
+/* ============================================
+   ユーティリティ
+   ============================================ */
 .spinner-container {
     display: flex;
     justify-content: center;
@@ -129,11 +484,13 @@ footer {
     min-height: 200px;
 }
 
-/* Animations */
+/* ============================================
+   アニメーション
+   ============================================ */
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
@@ -142,5 +499,19 @@ footer {
 }
 
 .fade-in {
-    animation: fadeIn 0.3s ease-in;
+    animation: fadeIn 250ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ============================================
+   レスポンシブ
+   ============================================ */
+@media (max-width: 768px) {
+    body { font-size: 13px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 16px; }
+
+    .card-body { padding: var(--space-4); }
+    .table { font-size: 12px; }
+    .navbar-brand { font-size: 15px; }
 }

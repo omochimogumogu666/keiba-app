@@ -127,6 +127,7 @@ def sample_data(app):
         }
 
 
+@pytest.mark.integration
 class TestRaceAPI:
     """Test race API endpoints."""
 
@@ -187,6 +188,7 @@ class TestRaceAPI:
         assert response.status_code == 404
 
 
+@pytest.mark.integration
 class TestHorseAPI:
     """Test horse API endpoints."""
 
@@ -241,6 +243,7 @@ class TestHorseAPI:
         assert len(data['recent_races']) == 1
 
 
+@pytest.mark.integration
 class TestJockeyAPI:
     """Test jockey API endpoints."""
 
@@ -273,6 +276,7 @@ class TestJockeyAPI:
         assert data['statistics']['wins'] == 1
 
 
+@pytest.mark.integration
 class TestTrainerAPI:
     """Test trainer API endpoints."""
 
@@ -306,6 +310,7 @@ class TestTrainerAPI:
         assert data['statistics']['wins'] == 1
 
 
+@pytest.mark.integration
 class TestPredictionAPI:
     """Test prediction API endpoints."""
 
@@ -341,6 +346,7 @@ class TestPredictionAPI:
         assert data['predictions'][0]['predicted_position'] == 1
 
 
+@pytest.mark.integration
 class TestTrackAPI:
     """Test track API endpoints."""
 
@@ -375,6 +381,7 @@ class TestTrackAPI:
         assert len(data['recent_races']) == 1
 
 
+@pytest.mark.integration
 class TestPagination:
     """Test pagination functionality."""
 

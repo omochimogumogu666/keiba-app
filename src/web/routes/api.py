@@ -1,14 +1,27 @@
 """
 API routes for external access.
-Provides RESTful API endpoints for horses, jockeys, trainers, races, and predictions.
+
+このモジュールは外部アクセス用のRESTful APIエンドポイントを提供します。
+- レート制限: 30リクエスト/分（エンドポイントごと）
+- キャッシュ: 5分間（クエリ文字列ごと）
+- ページネーション対応
+- エンドポイント: 馬、騎手、調教師、レース、予想データ
 """
 from flask import Blueprint, jsonify, request
 from sqlalchemy import desc, func, or_
 from datetime import datetime
+from typing import Tuple, Dict, Any, Optional
 from src.data.models import (
     db, Horse, Jockey, Trainer, Race, Track, RaceEntry, RaceResult, Prediction
 )
+from src.data.statistics import (
+    calculate_horse_statistics,
+    calculate_jockey_statistics,
+    calculate_trainer_statistics,
+    statistics_to_dict
+)
 from src.web.cache import cache
+from src.web.app import limiter
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -17,15 +30,30 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
 # Helper functions
-def get_pagination_params():
-    """Get pagination parameters from request."""
+def get_pagination_params() -> Tuple[int, int]:
+    """
+    リクエストからページネーションパラメータを取得します。
+
+    Returns:
+        Tuple[int, int]: (page, per_page) のタプル
+    """
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 20, type=int), 100)  # Max 100 items per page
     return page, per_page
 
 
-def paginate_response(query, page, per_page):
-    """Paginate query and return response with metadata."""
+def paginate_response(query, page: int, per_page: int) -> Dict[str, Any]:
+    """
+    クエリをページネーションして、メタデータ付きのレスポンスを返します。
+
+    Args:
+        query: SQLAlchemyクエリオブジェクト
+        page: ページ番号
+        per_page: ページあたりのアイテム数
+
+    Returns:
+        Dict[str, Any]: データとメタデータを含む辞書
+    """
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     return {
@@ -41,13 +69,23 @@ def paginate_response(query, page, per_page):
     }
 
 
-def error_response(message, status_code=400):
-    """Return error response."""
+def error_response(message: str, status_code: int = 400) -> Tuple[Any, int]:
+    """
+    エラーレスポンスを返します。
+
+    Args:
+        message: エラーメッセージ
+        status_code: HTTPステータスコード（デフォルト: 400）
+
+    Returns:
+        Tuple[Any, int]: (JSONレスポンス, ステータスコード) のタプル
+    """
     return jsonify({'error': message}), status_code
 
 
 # Race endpoints
 @api_bp.route('/races', methods=['GET'])
+@limiter.limit("30 per minute")
 @cache.cached(timeout=300, query_string=True)  # Cache for 5 minutes
 def get_races():
     """
@@ -126,6 +164,7 @@ def get_races():
 
 
 @api_bp.route('/races/<int:race_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_race(race_id):
     """
     Get detailed information about a specific race.
@@ -218,6 +257,7 @@ def get_race(race_id):
 
 # Horse endpoints
 @api_bp.route('/horses', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_horses():
     """
     Get list of horses with optional filtering.
@@ -270,6 +310,7 @@ def get_horses():
 
 
 @api_bp.route('/horses/<int:horse_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_horse(horse_id):
     """
     Get detailed information about a specific horse.
@@ -292,32 +333,8 @@ def get_horse(horse_id):
 
     # Include statistics if requested
     if request.args.get('include_stats', 'false').lower() == 'true':
-        total_races = RaceEntry.query.filter_by(horse_id=horse_id).count()
-        total_results = db.session.query(RaceResult).join(RaceEntry).filter(
-            RaceEntry.horse_id == horse_id
-        ).count()
-
-        wins = db.session.query(RaceResult).join(RaceEntry).filter(
-            RaceEntry.horse_id == horse_id,
-            RaceResult.finish_position == 1
-        ).count()
-
-        places = db.session.query(RaceResult).join(RaceEntry).filter(
-            RaceEntry.horse_id == horse_id,
-            RaceResult.finish_position <= 3
-        ).count()
-
-        win_rate = wins / total_results if total_results > 0 else 0
-        place_rate = places / total_results if total_results > 0 else 0
-
-        horse_data['statistics'] = {
-            'total_races': total_races,
-            'total_results': total_results,
-            'wins': wins,
-            'places': places,
-            'win_rate': round(win_rate, 3),
-            'place_rate': round(place_rate, 3)
-        }
+        stats = calculate_horse_statistics(horse_id)
+        horse_data['statistics'] = statistics_to_dict(stats)
 
     # Include recent races if requested
     if request.args.get('include_races', 'false').lower() == 'true':
@@ -340,6 +357,7 @@ def get_horse(horse_id):
 
 # Jockey endpoints
 @api_bp.route('/jockeys', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_jockeys():
     """
     Get list of jockeys with optional filtering.
@@ -390,6 +408,7 @@ def get_jockeys():
 
 
 @api_bp.route('/jockeys/<int:jockey_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_jockey(jockey_id):
     """
     Get detailed information about a specific jockey.
@@ -409,32 +428,8 @@ def get_jockey(jockey_id):
 
     # Include statistics if requested
     if request.args.get('include_stats', 'false').lower() == 'true':
-        total_races = RaceEntry.query.filter_by(jockey_id=jockey_id).count()
-        total_results = db.session.query(RaceResult).join(RaceEntry).filter(
-            RaceEntry.jockey_id == jockey_id
-        ).count()
-
-        wins = db.session.query(RaceResult).join(RaceEntry).filter(
-            RaceEntry.jockey_id == jockey_id,
-            RaceResult.finish_position == 1
-        ).count()
-
-        places = db.session.query(RaceResult).join(RaceEntry).filter(
-            RaceEntry.jockey_id == jockey_id,
-            RaceResult.finish_position <= 3
-        ).count()
-
-        win_rate = wins / total_results if total_results > 0 else 0
-        place_rate = places / total_results if total_results > 0 else 0
-
-        jockey_data['statistics'] = {
-            'total_races': total_races,
-            'total_results': total_results,
-            'wins': wins,
-            'places': places,
-            'win_rate': round(win_rate, 3),
-            'place_rate': round(place_rate, 3)
-        }
+        stats = calculate_jockey_statistics(jockey_id)
+        jockey_data['statistics'] = statistics_to_dict(stats)
 
     # Include recent races if requested
     if request.args.get('include_races', 'false').lower() == 'true':
@@ -457,6 +452,7 @@ def get_jockey(jockey_id):
 
 # Trainer endpoints
 @api_bp.route('/trainers', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_trainers():
     """
     Get list of trainers with optional filtering.
@@ -508,6 +504,7 @@ def get_trainers():
 
 
 @api_bp.route('/trainers/<int:trainer_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_trainer(trainer_id):
     """
     Get detailed information about a specific trainer.
@@ -528,34 +525,8 @@ def get_trainer(trainer_id):
 
     # Include statistics if requested
     if request.args.get('include_stats', 'false').lower() == 'true':
-        total_races = db.session.query(RaceEntry).join(Horse).filter(
-            Horse.trainer_id == trainer_id
-        ).count()
-        total_results = db.session.query(RaceResult).join(RaceEntry).join(Horse).filter(
-            Horse.trainer_id == trainer_id
-        ).count()
-
-        wins = db.session.query(RaceResult).join(RaceEntry).join(Horse).filter(
-            Horse.trainer_id == trainer_id,
-            RaceResult.finish_position == 1
-        ).count()
-
-        places = db.session.query(RaceResult).join(RaceEntry).join(Horse).filter(
-            Horse.trainer_id == trainer_id,
-            RaceResult.finish_position <= 3
-        ).count()
-
-        win_rate = wins / total_results if total_results > 0 else 0
-        place_rate = places / total_results if total_results > 0 else 0
-
-        trainer_data['statistics'] = {
-            'total_races': total_races,
-            'total_results': total_results,
-            'wins': wins,
-            'places': places,
-            'win_rate': round(win_rate, 3),
-            'place_rate': round(place_rate, 3)
-        }
+        stats = calculate_trainer_statistics(trainer_id)
+        trainer_data['statistics'] = statistics_to_dict(stats)
 
     # Include recent races if requested
     if request.args.get('include_races', 'false').lower() == 'true':
@@ -578,6 +549,7 @@ def get_trainer(trainer_id):
 
 # Prediction endpoints
 @api_bp.route('/predictions', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_predictions():
     """
     Get list of predictions with optional filtering.
@@ -630,6 +602,7 @@ def get_predictions():
 
 
 @api_bp.route('/predictions/race/<int:race_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_race_predictions(race_id):
     """
     Get predictions for a specific race.
@@ -671,6 +644,7 @@ def get_race_predictions(race_id):
 
 # Track endpoints
 @api_bp.route('/tracks', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_tracks():
     """
     Get list of all tracks.
@@ -693,6 +667,7 @@ def get_tracks():
 
 
 @api_bp.route('/tracks/<int:track_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_track(track_id):
     """
     Get information about a specific track.

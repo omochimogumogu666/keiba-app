@@ -1,5 +1,12 @@
 """
 Betting simulation module for horse racing.
+
+このモジュールは競馬の馬券シミュレーションを実行します。
+- 過去のレース結果と予想を使用した戦略シミュレーション
+- 7券種対応（単勝、複勝、馬連、馬単、ワイド、3連複、3連単）
+- 的中率・回収率・期待値の計算
+- 時系列の損益推移分析
+
 Simulates betting strategies using historical race results and predictions.
 """
 from datetime import datetime, date
@@ -12,6 +19,16 @@ from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
 
 from src.data.models import db, Race, RaceEntry, RaceResult, Payout, Prediction
+from src.ml.constants import (
+    DEFAULT_BET_AMOUNT,
+    DEFAULT_TOP_N_HORSES,
+    MIN_BET_PROBABILITY,
+    MAX_BETS_PER_RACE,
+    PLACE_PROBABILITY_MULTIPLIER,
+    PLACE_PROBABILITY_MAX,
+    COMBINATION_PROBABILITY_FACTOR,
+    TRIO_PROBABILITY_FACTOR
+)
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -32,10 +49,10 @@ class BetType(Enum):
 class BettingStrategy:
     """馬券購入戦略設定"""
     bet_types: List[BetType]  # 対象馬券種
-    bet_amount: int = 100  # 1点あたりの購入金額（円）
-    top_n: int = 3  # 予想確率上位N点を購入
-    min_probability: float = 0.1  # 最小購入確率閾値
-    max_bets_per_race: int = 10  # 1レースあたりの最大購入点数
+    bet_amount: int = DEFAULT_BET_AMOUNT  # 1点あたりの購入金額（円）
+    top_n: int = DEFAULT_TOP_N_HORSES  # 予想確率上位N点を購入
+    min_probability: float = MIN_BET_PROBABILITY  # 最小購入確率閾値
+    max_bets_per_race: int = MAX_BETS_PER_RACE  # 1レースあたりの最大購入点数
 
 
 @dataclass
@@ -382,7 +399,7 @@ class BettingSimulator:
 
         for horse_num, prob in sorted_horses:
             # 複勝確率は単勝確率より高いと仮定
-            place_prob = min(prob * 3, 0.95)
+            place_prob = min(prob * PLACE_PROBABILITY_MULTIPLIER, PLACE_PROBABILITY_MAX)
             if place_prob < self.strategy.min_probability:
                 continue
 
@@ -451,7 +468,7 @@ class BettingSimulator:
                     continue
 
                 # 1着horse1, 2着horse2の確率（簡易計算）
-                combo_prob = prob1 * prob2 * 0.5
+                combo_prob = prob1 * prob2 * COMBINATION_PROBABILITY_FACTOR
                 if combo_prob < self.strategy.min_probability:
                     continue
 
@@ -558,7 +575,7 @@ class BettingSimulator:
                         continue
 
                     # 1着horse1, 2着horse2, 3着horse3の確率（簡易計算）
-                    combo_prob = prob1 * prob2 * prob3 * 0.3
+                    combo_prob = prob1 * prob2 * prob3 * TRIO_PROBABILITY_FACTOR
                     if combo_prob < self.strategy.min_probability:
                         continue
 

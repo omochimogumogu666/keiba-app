@@ -1,6 +1,12 @@
 """
 Feature engineering for horse racing prediction.
 
+このモジュールは競馬予想のための特徴量を抽出します。
+- 馬の過去成績統計（距離別・馬場別・競馬場別）
+- 騎手・調教師の統計
+- レース固有の特徴（距離、馬場、天候など）
+- 最近のパフォーマンストレンド
+
 This module extracts features from race entries and historical data
 for machine learning model training and prediction.
 """
@@ -14,6 +20,11 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from src.data.models import (
     Horse, Jockey, Trainer, Race, RaceEntry, RaceResult, Track, db
+)
+from src.ml.constants import (
+    LOOKBACK_DAYS_DEFAULT,
+    RECENT_RACES_COUNT,
+    MIN_SAMPLE_SIZE_FOR_STATS
 )
 from src.utils.logger import get_app_logger
 
@@ -32,13 +43,14 @@ class FeatureExtractor:
     - Recent performance trends
     """
 
-    def __init__(self, session: Session, lookback_days: int = 730):
+    def __init__(self, session: Session, lookback_days: int = LOOKBACK_DAYS_DEFAULT):
         """
         Initialize feature extractor.
 
         Args:
             session: SQLAlchemy database session
-            lookback_days: Number of days to look back for historical stats (default: 2 years)
+            lookback_days: Number of days to look back for historical stats
+                          (default: LOOKBACK_DAYS_DEFAULT = 730 days / 2 years)
         """
         self.session = session
         self.lookback_days = lookback_days

@@ -144,7 +144,7 @@ def scrape_upcoming_races(target_date, delay=3):
         # 各レースの出馬表をスクレイピング
         for i, race_info in enumerate(races, 1):
             try:
-                race_id = race_info['jra_race_id']
+                race_id = race_info['netkeiba_race_id']
                 logger.info(f"[{i}/{len(races)}] レース {race_id} の出馬表を取得中...")
 
                 # 出馬表をスクレイピング
@@ -156,9 +156,9 @@ def scrape_upcoming_races(target_date, delay=3):
 
                 # データベースに保存
                 race_data = {
-                    'jra_race_id': race_id,
+                    'netkeiba_race_id': race_id,
                     'race_date': target_date,
-                    'track_name': race_info.get('track_name', '不明'),
+                    'track': race_info.get('track', '不明'),
                     'race_number': race_info.get('race_number', 1),
                     'race_name': race_card.get('race_name', ''),
                     'distance': race_card.get('distance', 0),

@@ -71,8 +71,8 @@ class TestHorseProfileParsing:
             assert key in performance, f"Missing key in performance: {key}"
 
 
+@pytest.mark.scraper
 @pytest.mark.integration
-@pytest.mark.slow
 class TestHorseProfileScraping:
     """Integration tests for actual horse profile scraping."""
 

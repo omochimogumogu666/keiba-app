@@ -8,6 +8,7 @@ from src.data.models import (
 )
 
 
+@pytest.mark.integration
 class TestTrack:
     """Tests for Track model."""
 
@@ -43,6 +44,7 @@ class TestTrack:
             test_db.session.commit()
 
 
+@pytest.mark.integration
 class TestJockey:
     """Tests for Jockey model."""
 
@@ -72,6 +74,7 @@ class TestJockey:
             test_db.session.commit()
 
 
+@pytest.mark.integration
 class TestTrainer:
     """Tests for Trainer model."""
 
@@ -90,6 +93,7 @@ class TestTrainer:
         assert trainer.stable == '栗東'
 
 
+@pytest.mark.integration
 class TestHorse:
     """Tests for Horse model."""
 
@@ -152,6 +156,7 @@ class TestHorse:
         assert repr(sample_horse) == '<Horse テストホース>'
 
 
+@pytest.mark.integration
 class TestRace:
     """Tests for Race model."""
 
@@ -196,6 +201,7 @@ class TestRace:
         assert sample_race.race_entries[0].horse.name == 'テストホース'
 
 
+@pytest.mark.integration
 class TestRaceEntry:
     """Tests for RaceEntry model."""
 
@@ -223,6 +229,7 @@ class TestRaceEntry:
         assert entry.jockey.name == 'テスト騎手'
 
 
+@pytest.mark.integration
 class TestRaceResult:
     """Tests for RaceResult model."""
 
@@ -247,6 +254,7 @@ class TestRaceResult:
         assert result.race_entry.horse.name == 'テストホース'
 
 
+@pytest.mark.integration
 class TestPrediction:
     """Tests for Prediction model."""
 
@@ -304,6 +312,7 @@ class TestPrediction:
         assert sample_race.predictions[0].predicted_position == 1
 
 
+@pytest.mark.integration
 class TestRelationships:
     """Tests for model relationships."""
 

@@ -128,6 +128,7 @@ def sample_race(app):
     return race_id
 
 
+@pytest.mark.unit
 def test_betting_strategy_creation():
     """Test creating betting strategy."""
     strategy = BettingStrategy(
@@ -144,6 +145,7 @@ def test_betting_strategy_creation():
     assert strategy.top_n == 3
 
 
+@pytest.mark.unit
 def test_betting_simulator_creation():
     """Test creating betting simulator."""
     strategy = BettingStrategy(
@@ -156,6 +158,7 @@ def test_betting_simulator_creation():
     assert simulator.strategy == strategy
 
 
+@pytest.mark.integration
 def test_run_simulation_win_only(app, sample_race):
     """Test running simulation with win bets only."""
     with app.app_context():
@@ -179,6 +182,7 @@ def test_run_simulation_win_only(app, sample_race):
         assert result.hit_count >= 0
 
 
+@pytest.mark.integration
 def test_run_simulation_multiple_bet_types(app, sample_race):
     """Test running simulation with multiple bet types."""
     with app.app_context():
@@ -203,6 +207,7 @@ def test_run_simulation_multiple_bet_types(app, sample_race):
         assert 'quinella' in result.stats_by_bet_type
 
 
+@pytest.mark.unit
 def test_check_hit_win(app, sample_race):
     """Test checking win bet hit."""
     with app.app_context():
@@ -234,6 +239,7 @@ def test_check_hit_win(app, sample_race):
         assert simulator._check_hit(ticket_miss, race_results) is False
 
 
+@pytest.mark.unit
 def test_check_hit_place(app, sample_race):
     """Test checking place bet hit."""
     with app.app_context():
@@ -266,6 +272,7 @@ def test_check_hit_place(app, sample_race):
         assert simulator._check_hit(ticket_miss, race_results) is False
 
 
+@pytest.mark.unit
 def test_check_hit_quinella(app, sample_race):
     """Test checking quinella bet hit."""
     with app.app_context():
@@ -297,6 +304,7 @@ def test_check_hit_quinella(app, sample_race):
         assert simulator._check_hit(ticket_miss, race_results) is False
 
 
+@pytest.mark.unit
 def test_check_hit_exacta(app, sample_race):
     """Test checking exacta bet hit."""
     with app.app_context():
@@ -328,6 +336,7 @@ def test_check_hit_exacta(app, sample_race):
         assert simulator._check_hit(ticket_miss, race_results) is False
 
 
+@pytest.mark.unit
 def test_calculate_payout(app, sample_race):
     """Test calculating payout."""
     with app.app_context():
@@ -353,6 +362,7 @@ def test_calculate_payout(app, sample_race):
         assert payout_amount == 200
 
 
+@pytest.mark.unit
 def test_calculate_payout_multiple_units(app, sample_race):
     """Test calculating payout with multiple units."""
     with app.app_context():
@@ -378,6 +388,7 @@ def test_calculate_payout_multiple_units(app, sample_race):
         assert payout_amount == 1000
 
 
+@pytest.mark.integration
 def test_simulation_metrics_calculation(app, sample_race):
     """Test simulation result metrics calculation."""
     with app.app_context():
@@ -402,6 +413,7 @@ def test_simulation_metrics_calculation(app, sample_race):
         assert result.total_profit == result.total_payout - result.total_investment
 
 
+@pytest.mark.integration
 def test_simulation_without_predictions(app, sample_race):
     """Test simulation without using predictions (uniform probability)."""
     with app.app_context():
@@ -423,6 +435,7 @@ def test_simulation_without_predictions(app, sample_race):
         assert result.total_bets >= 1
 
 
+@pytest.mark.integration
 def test_simulation_time_series_generation(app, sample_race):
     """Test time series data generation."""
     with app.app_context():
