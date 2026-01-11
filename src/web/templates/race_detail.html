@@ -88,7 +88,8 @@
         </div>
 
         <!-- Race Results (if completed) -->
-        {% if race.status == 'completed' and race.race_results %}
+        {% set results_available = race.race_entries | selectattr('result') | list %}
+        {% if race.status == 'completed' and results_available %}
             <div class="card mb-4">
                 <div class="card-header">
                     <i class="bi bi-trophy-fill"></i> レース結果
@@ -110,7 +111,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for result in race.race_results|sort(attribute='finish_position') %}
+                                {% for entry in race.race_entries|sort(attribute='result.finish_position') if entry.result %}
+                                    {% set result = entry.result %}
                                     <tr class="{{ 'table-warning' if result.finish_position == 1 else 'table-info' if result.finish_position <= 3 else '' }}">
                                         <td>
                                             <strong class="fs-5">{{ result.finish_position }}</strong>
@@ -122,16 +124,16 @@
                                                 <i class="bi bi-award text-bronze"></i>
                                             {% endif %}
                                         </td>
-                                        <td>{{ result.race_entry.post_position if result.race_entry and result.race_entry.post_position else '-' }}</td>
-                                        <td>{{ result.race_entry.horse_number if result.race_entry else '-' }}</td>
+                                        <td>{{ entry.post_position if entry.post_position else '-' }}</td>
+                                        <td>{{ entry.horse_number if entry.horse_number else '-' }}</td>
                                         <td>
-                                            <strong>{{ result.race_entry.horse.name if result.race_entry and result.race_entry.horse else 'Unknown' }}</strong>
+                                            <strong>{{ entry.horse.name if entry.horse else 'Unknown' }}</strong>
                                         </td>
-                                        <td>{{ result.race_entry.jockey.name if result.race_entry and result.race_entry.jockey else '-' }}</td>
+                                        <td>{{ entry.jockey.name if entry.jockey else '-' }}</td>
                                         <td>{{ result.finish_time if result.finish_time else '-' }}</td>
                                         <td>{{ result.margin if result.margin else '-' }}</td>
                                         <td>{{ result.popularity if result.popularity else '-' }}</td>
-                                        <td>{{ result.win_odds if result.win_odds else '-' }}</td>
+                                        <td>{{ result.final_odds if result.final_odds else '-' }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -139,6 +141,234 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Payouts (if available) -->
+            {% if payouts and (payouts.win or payouts.place or payouts.bracket_quinella or payouts.quinella or payouts.exacta or payouts.wide or payouts.trio or payouts.trifecta) %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-cash-stack"></i> 払戻金
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Win (単勝) -->
+                            {% if payouts.win %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">単勝</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>馬番</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.win %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Place (複勝) -->
+                            {% if payouts.place %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">複勝</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>馬番</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.place %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Bracket Quinella (枠連) -->
+                            {% if payouts.bracket_quinella %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">枠連</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>組合せ</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.bracket_quinella %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Quinella (馬連) -->
+                            {% if payouts.quinella %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">馬連</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>組合せ</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.quinella %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Exacta (馬単) -->
+                            {% if payouts.exacta %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">馬単</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>組合せ</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.exacta %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Wide (ワイド) -->
+                            {% if payouts.wide %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">ワイド</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>組合せ</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.wide %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Trio (三連複) -->
+                            {% if payouts.trio %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">三連複</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>組合せ</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.trio %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Trifecta (三連単) -->
+                            {% if payouts.trifecta %}
+                            <div class="col-md-6 mb-3">
+                                <h6 class="fw-bold">三連単</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>組合せ</th>
+                                                <th>払戻</th>
+                                                <th>人気</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for payout in payouts.trifecta %}
+                                            <tr>
+                                                <td>{{ payout.combination }}</td>
+                                                <td class="fw-bold">¥{{ '{:,}'.format(payout.payout) }}</td>
+                                                <td>{{ payout.popularity if payout.popularity else '-' }}{% if payout.popularity %}番人気{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         {% endif %}
 
         <div class="card">

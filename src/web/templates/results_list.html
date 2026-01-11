@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}レース結果一覧 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-trophy-fill"></i> レース結果一覧
+        </h1>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-bar-chart-fill"></i> 統計情報
+                </h5>
+                <p class="mb-1">
+                    <strong>総レース数:</strong> {{ stats.total_races }}レース
+                </p>
+                {% if stats.date_range[0] and stats.date_range[1] %}
+                <p class="mb-0">
+                    <strong>データ期間:</strong>
+                    {{ stats.date_range[0].strftime('%Y/%m/%d') }} 〜
+                    {{ stats.date_range[1].strftime('%Y/%m/%d') }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" action="{{ url_for('main.results_list') }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="date" class="form-label">日付</label>
+                        <input type="date" class="form-control" id="date" name="date"
+                               value="{{ selected_date }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="track" class="form-label">競馬場</label>
+                        <select class="form-select" id="track" name="track">
+                            <option value="">すべて</option>
+                            {% for track in tracks %}
+                                <option value="{{ track.id }}"
+                                        {% if selected_track == track.id|string %}selected{% endif %}>
+                                    {{ track.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> 検索
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Race Results List -->
+<div class="row">
+    <div class="col-12">
+        {% if races %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>日付</th>
+                            <th>競馬場</th>
+                            <th>レース</th>
+                            <th>レース名</th>
+                            <th>距離</th>
+                            <th>馬場</th>
+                            <th>クラス</th>
+                            <th>1着馬</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for race in races %}
+                            <tr>
+                                <td>{{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}</td>
+                                <td>{{ race.track.name if race.track else '-' }}</td>
+                                <td>{{ race.race_number }}R</td>
+                                <td>{{ race.race_name or '-' }}</td>
+                                <td>{{ race.distance }}m</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ race.surface }}</span>
+                                </td>
+                                <td>
+                                    {% if race.race_class %}
+                                        <span class="badge bg-warning text-dark">{{ race.race_class }}</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% set winner = race.race_entries | selectattr('result.finish_position', 'equalto', 1) | first %}
+                                    {% if winner %}
+                                        <i class="bi bi-trophy-fill text-warning"></i>
+                                        {{ winner.horse.name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
+                                       class="btn btn-sm btn-primary">
+                                        詳細
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.results_list', page=pagination.prev_num, date=selected_date, track=selected_track) if pagination.has_prev else '#' }}">
+                            前へ
+                        </a>
+                    </li>
+
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.results_list', page=page_num, date=selected_date, track=selected_track) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.results_list', page=pagination.next_num, date=selected_date, track=selected_track) if pagination.has_next else '#' }}">
+                            次へ
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 該当するレース結果が見つかりませんでした。
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
