@@ -587,8 +587,16 @@ class NetkeibaScraper:
             if jockey_link:
                 entry['jockey_name'] = self._clean_text(jockey_link.get_text())
                 jockey_url = jockey_link.get('href', '')
-                # URL format: https://db.netkeiba.com/jockey/result/recent/01160/
-                entry['netkeiba_jockey_id'] = self._extract_id_from_url(jockey_url, r'/jockey/[^/]+/[^/]+/(\d+)')
+                # URL format variations:
+                # - https://db.netkeiba.com/jockey/result/recent/01160/
+                # - https://db.netkeiba.com/jockey/01160/
+                jockey_id = self._extract_id_from_url(jockey_url, r'/jockey/(?:[^/]+/[^/]+/)?(\d+)')
+                if jockey_id:
+                    entry['netkeiba_jockey_id'] = jockey_id
+                else:
+                    logger.warning(f"Failed to extract jockey ID from URL: {jockey_url}")
+            else:
+                logger.warning(f"No jockey link found for horse {entry.get('horse_name', 'Unknown')}")
 
         # Trainer
         trainer_td = row.find('td', class_='Trainer')
@@ -597,8 +605,16 @@ class NetkeibaScraper:
             if trainer_link:
                 entry['trainer_name'] = self._clean_text(trainer_link.get_text())
                 trainer_url = trainer_link.get('href', '')
-                # URL format: https://db.netkeiba.com/trainer/result/recent/01128/
-                entry['netkeiba_trainer_id'] = self._extract_id_from_url(trainer_url, r'/trainer/[^/]+/[^/]+/(\d+)')
+                # URL format variations:
+                # - https://db.netkeiba.com/trainer/result/recent/01128/
+                # - https://db.netkeiba.com/trainer/01128/
+                trainer_id = self._extract_id_from_url(trainer_url, r'/trainer/(?:[^/]+/[^/]+/)?(\d+)')
+                if trainer_id:
+                    entry['netkeiba_trainer_id'] = trainer_id
+                else:
+                    logger.warning(f"Failed to extract trainer ID from URL: {trainer_url}")
+            else:
+                logger.warning(f"No trainer link found for horse {entry.get('horse_name', 'Unknown')}")
 
         # Weight (斤量) - find td after Barei column
         tds = row.find_all('td')

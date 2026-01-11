@@ -365,6 +365,19 @@ def save_race_entries_to_db(race_id, entries):
     race_entries = []
 
     for entry_data in entries:
+        # Validate required fields
+        if not entry_data.get('netkeiba_horse_id'):
+            logger.warning(f"Entry missing horse ID, skipping: {entry_data}")
+            continue
+
+        if not entry_data.get('netkeiba_jockey_id'):
+            logger.warning(f"Entry missing jockey ID for horse {entry_data.get('horse_name')}, skipping")
+            continue
+
+        if not entry_data.get('netkeiba_trainer_id'):
+            logger.warning(f"Entry missing trainer ID for horse {entry_data.get('horse_name')}, skipping")
+            continue
+
         # Get or create horse, jockey, trainer using netkeiba IDs
         horse = get_or_create_horse(
             netkeiba_horse_id=entry_data['netkeiba_horse_id'],
@@ -618,3 +631,37 @@ def save_payouts_to_db(race_id, payouts_data):
     logger.info(f"Saved {len(payout_objects)} payouts for race {race_id}")
 
     return payout_objects
+
+
+def update_race_status_from_results():
+    """
+    レース結果が存在するレースのステータスを自動的に'completed'に更新する。
+
+    Returns:
+        更新されたレース数
+    """
+    from src.data.models import Race, RaceEntry, RaceResult
+
+    # レース結果があるのにステータスがupcomingのレースを検索
+    races_to_update = db.session.query(Race).join(
+        RaceEntry, Race.id == RaceEntry.race_id
+    ).join(
+        RaceResult, RaceEntry.id == RaceResult.race_entry_id
+    ).filter(
+        Race.status == RaceStatus.UPCOMING
+    ).distinct().all()
+
+    updated_count = 0
+    for race in races_to_update:
+        race.status = RaceStatus.COMPLETED
+        logger.info(f"レース {race.netkeiba_race_id} ({race.race_name}) のステータスを 'completed' に更新")
+        updated_count += 1
+
+    db.session.commit()
+
+    if updated_count > 0:
+        logger.info(f"{updated_count}件のレースステータスを更新しました")
+    else:
+        logger.debug("更新が必要なレースはありませんでした")
+
+    return updated_count

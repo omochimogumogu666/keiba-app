@@ -17,7 +17,11 @@
       "Bash(dir:*)",
       "Bash(docker compose logs:*)",
       "Bash(docker compose:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(docker-compose exec:*)",
+      "Bash(lsof:*)",
+      "Bash(ps:*)",
+      "Bash(sort:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

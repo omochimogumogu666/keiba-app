@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Set timezone to JST
+ENV TZ=Asia/Tokyo
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Set working directory
 WORKDIR /app
 
@@ -7,6 +11,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     gcc \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

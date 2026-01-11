@@ -204,13 +204,13 @@ class FeatureExtractor:
         # Race features
         features.update(self._extract_race_features(race))
 
-        # Entry-specific features
-        features['post_position'] = entry.post_position
-        features['horse_number'] = entry.horse_number
-        features['weight'] = entry.weight  # 斤量
-        features['horse_weight'] = entry.horse_weight  # 馬体重
-        features['horse_weight_change'] = entry.horse_weight_change  # 馬体重変化
-        features['morning_odds'] = entry.morning_odds
+        # Entry-specific features (explicitly convert to float)
+        features['post_position'] = float(entry.post_position) if entry.post_position is not None else 0.0
+        features['horse_number'] = float(entry.horse_number) if entry.horse_number is not None else 0.0
+        features['weight'] = float(entry.weight) if entry.weight is not None else 0.0  # 斤量
+        features['horse_weight'] = float(entry.horse_weight) if entry.horse_weight is not None else 0.0  # 馬体重
+        features['horse_weight_change'] = float(entry.horse_weight_change) if entry.horse_weight_change is not None else 0.0  # 馬体重変化
+        features['morning_odds'] = float(entry.morning_odds) if entry.morning_odds is not None else 0.0
 
         # Historical features (avoid data leakage in training)
         cutoff_date = as_of_date if as_of_date else datetime.utcnow()
@@ -307,7 +307,11 @@ class FeatureExtractor:
         features['horse_avg_finish_position'] = avg_position if not np.isnan(avg_position) else 0.0
 
         # Distance-specific stats (within ±200m)
-        distance_entries = [e for e in past_entries if abs(e.race.distance - race.distance) <= 200]
+        distance_entries = [
+            e for e in past_entries
+            if e.race.distance is not None and race.distance is not None
+            and abs(e.race.distance - race.distance) <= 200
+        ]
         if distance_entries:
             distance_wins = sum(1 for e in distance_entries if e.result and e.result.finish_position == 1)
             features['horse_distance_win_rate'] = distance_wins / len(distance_entries)

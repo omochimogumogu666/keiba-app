@@ -273,3 +273,65 @@ class XGBoostRaceModel(BaseRaceModel):
         top_n = top_n.sort_values(['race_id', 'rank'])
 
         return top_n
+
+    def save(self, filepath: str) -> None:
+        """
+        Save model to file.
+
+        Extends base class to save task attribute.
+
+        Args:
+            filepath: Path to save the model
+        """
+        if not self.is_trained:
+            raise ValueError("Cannot save untrained model")
+
+        # Create directory if it doesn't exist
+        import os
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        model_data = {
+            'model': self.model,
+            'model_name': self.model_name,
+            'version': self.version,
+            'feature_columns': self.feature_columns,
+            'is_trained': self.is_trained,
+            'training_metadata': self.training_metadata,
+            'task': self.task,  # Save task attribute
+            'params': self.params  # Save model parameters
+        }
+
+        import pickle
+        with open(filepath, 'wb') as f:
+            pickle.dump(model_data, f)
+
+        logger.info(f"Model saved to {filepath}")
+
+    def load(self, filepath: str) -> None:
+        """
+        Load model from file.
+
+        Extends base class to load task attribute.
+
+        Args:
+            filepath: Path to load the model from
+        """
+        import os
+        import pickle
+
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Model file not found: {filepath}")
+
+        with open(filepath, 'rb') as f:
+            model_data = pickle.load(f)
+
+        self.model = model_data['model']
+        self.model_name = model_data['model_name']
+        self.version = model_data['version']
+        self.feature_columns = model_data['feature_columns']
+        self.is_trained = model_data['is_trained']
+        self.training_metadata = model_data.get('training_metadata', {})
+        self.task = model_data.get('task', 'regression')  # Load task attribute with default
+        self.params = model_data.get('params', {})  # Load model parameters
+
+        logger.info(f"Model loaded from {filepath} (task: {self.task})")

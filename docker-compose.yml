@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: ${DB_USER:-keiba_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-keiba_password}
       POSTGRES_DB: ${DB_NAME:-keiba_db}
+      TZ: Asia/Tokyo
+      PGTZ: Asia/Tokyo
     ports:
       # localhost専用バインド - 外部アクセス完全遮断
       - "127.0.0.1:5432:5432"
@@ -34,6 +36,7 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - TZ=Asia/Tokyo
       - DATABASE_URL=postgresql://${DB_USER:-keiba_user}:${DB_PASSWORD:-keiba_password}@db:5432/${DB_NAME:-keiba_db}
     depends_on:
       db:

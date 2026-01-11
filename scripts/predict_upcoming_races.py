@@ -12,13 +12,14 @@ import os
 import sys
 from datetime import datetime, date, timedelta
 import argparse
+import pandas as pd
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.web.app import create_app
 from src.scrapers.netkeiba_scraper import NetkeibaScraper
-from src.data.database import save_race_to_db, save_race_entries_to_db
+from src.data.database import save_race_to_db, save_race_entries_to_db, update_race_status_from_results
 from src.ml.feature_engineering import FeatureExtractor
 from src.ml.preprocessing import FeaturePreprocessor, handle_missing_values
 from src.ml.models.xgboost_model import XGBoostRaceModel
@@ -175,14 +176,26 @@ def scrape_upcoming_races(target_date, delay=3):
 
                 # 出走馬を保存
                 if 'entries' in race_card and race_card['entries']:
-                    save_race_entries_to_db(db_race.id, race_card['entries'])
-                    logger.info(f"レース {race_id} を保存完了 ({len(race_card['entries'])}頭)")
-                    race_ids.append(db_race.id)
+                    # Validate entries before saving
+                    valid_entries = []
+                    for entry in race_card['entries']:
+                        if all(key in entry for key in ['netkeiba_horse_id', 'netkeiba_jockey_id', 'netkeiba_trainer_id']):
+                            valid_entries.append(entry)
+                        else:
+                            logger.warning(f"レース {race_id}: 不完全なエントリーをスキップ - 馬:{entry.get('horse_name', 'Unknown')}")
+
+                    if valid_entries:
+                        saved_entries = save_race_entries_to_db(db_race.id, valid_entries)
+                        logger.info(f"レース {race_id} を保存完了 ({len(saved_entries)}/{len(race_card['entries'])}頭)")
+                        race_ids.append(db_race.id)
+                    else:
+                        logger.warning(f"レース {race_id} に有効な出走馬データがありません")
                 else:
                     logger.warning(f"レース {race_id} に出走馬データがありません")
 
             except Exception as e:
                 logger.error(f"レース {race_id} の処理中にエラー: {e}", exc_info=True)
+                db.session.rollback()  # Rollback on error to allow next race to proceed
                 continue
 
     return race_ids
@@ -242,6 +255,15 @@ def generate_predictions(race_ids, model):
             # 欠損値を処理
             X_filled = handle_missing_values(X, strategy='median')
 
+            # Ensure all feature columns (excluding IDs) are numeric for XGBoost
+            id_columns = [col for col in X_filled.columns if col.endswith('_id') or col == 'race_date']
+            feature_columns = [col for col in X_filled.columns if col not in id_columns]
+
+            for col in feature_columns:
+                if X_filled[col].dtype == 'object':
+                    logger.warning(f"Converting column {col} from object to float")
+                    X_filled[col] = pd.to_numeric(X_filled[col], errors='coerce').fillna(0.0)
+
             # 予想を生成
             if model.task == 'regression':
                 # 着順を予測
@@ -292,7 +314,6 @@ def generate_predictions(race_ids, model):
         logger.warning("予想が生成できませんでした")
         return None
 
-    import pandas as pd
     combined = pd.concat(all_predictions, ignore_index=True)
     logger.info(f"{len(combined)}件の予想を生成完了")
 
@@ -366,6 +387,14 @@ def main():
 
     # Flaskアプリを作成
     app = create_app()
+
+    # レース結果が存在するレースのステータスを更新
+    with app.app_context():
+        print("\nレース結果に基づいてステータスを更新中...")
+        updated_count = update_race_status_from_results()
+        if updated_count > 0:
+            print(f"{updated_count}件のレースステータスを 'completed' に更新しました")
+        print("=" * 80)
 
     all_race_ids = []
 
