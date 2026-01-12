@@ -71,6 +71,48 @@ def generate_date_list(start_date, end_date, weekends_only=True):
     return dates
 
 
+def should_scrape_race(race_class):
+    """
+    Determine if a race should be scraped based on race class.
+    Only scrape races of 2勝クラス or higher.
+
+    Args:
+        race_class: Race class string (e.g., 'G1', '2勝クラス', '未勝利')
+
+    Returns:
+        True if race should be scraped, False otherwise
+    """
+    # Priority races to scrape (2勝クラス以上)
+    target_classes = [
+        'G1', 'G2', 'G3',           # Grade races
+        'OP', 'オープン',            # Open class
+        'Listed', 'L',              # Listed races
+        '3勝クラス', '３勝クラス',   # 3-win class
+        '2勝クラス', '２勝クラス',   # 2-win class
+    ]
+
+    if not race_class:
+        return False
+
+    # Check if race class matches target classes
+    return any(target in race_class for target in target_classes)
+
+
+def should_scrape_track(track_name):
+    """
+    Determine if a race should be scraped based on track.
+    Only scrape races from major tracks: 東京、中山、阪神、京都、中京.
+
+    Args:
+        track_name: Track name string (e.g., '東京', '札幌')
+
+    Returns:
+        True if race should be scraped, False otherwise
+    """
+    target_tracks = ['東京', '中山', '阪神', '京都', '中京']
+    return track_name in target_tracks
+
+
 def scrape_and_save_date(scraper, target_date, stats):
     """
     Scrape and save race results for a specific date.
@@ -96,13 +138,24 @@ def scrape_and_save_date(scraper, target_date, stats):
             stats['dates_no_races'] += 1
             return True
 
-        print(f"Found {len(races)} races")
-        stats['total_races_found'] += len(races)
+        # Filter races by track (主要5競馬場)
+        filtered_races = [r for r in races if should_scrape_track(r.get('track'))]
 
-        # Process each race
-        for i, race_info in enumerate(races):
+        if not filtered_races:
+            print(f"Found {len(races)} races, but none from target tracks (東京、中山、阪神、京都、中京)")
+            stats['races_filtered_by_track'] += len(races)
+            stats['dates_no_races'] += 1
+            return True
+
+        print(f"Found {len(races)} races ({len(filtered_races)} from target tracks)")
+        stats['total_races_found'] += len(filtered_races)
+        stats['races_filtered_by_track'] += len(races) - len(filtered_races)
+
+        # Process each race (only target track races)
+        for i, race_info in enumerate(filtered_races):
             netkeiba_race_id = race_info.get('netkeiba_race_id')
-            print(f"\n[{i+1}/{len(races)}] Processing race {netkeiba_race_id}...")
+            track = race_info.get('track', 'Unknown')
+            print(f"\n[{i+1}/{len(filtered_races)}] Processing race {netkeiba_race_id} ({track})...")
 
             if not netkeiba_race_id:
                 print("  ✗ Skipping: No race ID available")
@@ -110,29 +163,35 @@ def scrape_and_save_date(scraper, target_date, stats):
                 continue
 
             try:
-                # Save race to database
-                race = save_race_to_db(race_info)
-                print(f"  ✓ Saved race (DB ID: {race.id})")
-
-                # Scrape and save race card (entries) - NO CNAME NEEDED!
+                # Scrape race card first to get race class
                 race_card = scraper.scrape_race_card(netkeiba_race_id)
 
-                if race_card and race_card.get('entries'):
-                    # Merge race_info with race_card race_info
-                    if race_card.get('race_info'):
-                        for key, value in race_card['race_info'].items():
-                            if value and key not in ['netkeiba_race_id']:
-                                race_info[key] = value
-                        # Update race with additional info
-                        race = save_race_to_db(race_info)
-
-                    entries = save_race_entries_to_db(race.id, race_card['entries'])
-                    print(f"  ✓ Saved {len(entries)} entries")
-                    stats['total_entries_saved'] += len(entries)
-                else:
-                    print("  ✗ No entries found")
+                if not race_card or not race_card.get('entries'):
+                    print("  ✗ No race card data found")
                     stats['races_failed'] += 1
                     continue
+
+                # Merge race_info with race_card race_info
+                if race_card.get('race_info'):
+                    for key, value in race_card['race_info'].items():
+                        if value and key not in ['netkeiba_race_id']:
+                            race_info[key] = value
+
+                # Check race class filter (2勝クラス以上)
+                race_class = race_info.get('race_class')
+                if not should_scrape_race(race_class):
+                    print(f"  ⊘ Skipping: Race class '{race_class}' is below 2勝クラス")
+                    stats['races_filtered_by_class'] += 1
+                    continue
+
+                # Save race to database
+                race = save_race_to_db(race_info)
+                print(f"  ✓ Saved race (Class: {race_class}, DB ID: {race.id})")
+
+                # Save race entries
+                entries = save_race_entries_to_db(race.id, race_card['entries'])
+                print(f"  ✓ Saved {len(entries)} entries")
+                stats['total_entries_saved'] += len(entries)
 
                 # Scrape and save race result
                 try:
@@ -194,7 +253,9 @@ def print_statistics(stats, start_time):
     print(f"  - Dates with no races: {stats['dates_no_races']}")
     print(f"  - Dates failed: {stats['dates_failed']}")
     print(f"\nRaces:")
-    print(f"  - Total races found: {stats['total_races_found']}")
+    print(f"  - Total races found (target tracks): {stats['total_races_found']}")
+    print(f"  - Races filtered by track: {stats['races_filtered_by_track']}")
+    print(f"  - Races filtered by class: {stats['races_filtered_by_class']}")
     print(f"  - Races completed: {stats['races_completed']}")
     print(f"  - Races without results: {stats['races_no_results']}")
     print(f"  - Races failed: {stats['races_failed']}")
@@ -260,12 +321,15 @@ def main():
     dates = generate_date_list(start_date, end_date, weekends_only=weekends_only)
 
     print(f"\n{'='*80}")
-    print("HISTORICAL DATA SCRAPING")
+    print("HISTORICAL DATA SCRAPING - OPTIMIZED FOR MAJOR RACES")
     print(f"{'='*80}")
     print(f"Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
     print(f"Total dates to scrape: {len(dates)}")
     print(f"Weekends only: {weekends_only}")
-    print(f"Estimated time: {len(dates) * 5 / 60:.1f} hours (assuming ~5 min per date)")
+    print(f"\nFiltering criteria:")
+    print(f"  - Tracks: 東京、中山、阪神、京都、中京 (5 major tracks)")
+    print(f"  - Race class: 2勝クラス以上 (excludes 1勝クラス, 未勝利, 新馬)")
+    print(f"\nEstimated time: {len(dates) * 2 / 60:.1f} hours (optimized)")
     print(f"{'='*80}\n")
 
     response = input("Continue? (y/n): ")
@@ -283,6 +347,8 @@ def main():
         'races_completed': 0,
         'races_no_results': 0,
         'races_failed': 0,
+        'races_filtered_by_track': 0,
+        'races_filtered_by_class': 0,
         'total_entries_saved': 0,
         'total_results_saved': 0,
         'total_payouts_saved': 0,

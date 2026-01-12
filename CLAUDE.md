@@ -13,9 +13,9 @@ python run.py    # Local server: http://localhost:5000
 ## Core Commands
 
 ```bash
-# Scraping
+# Scraping (Optimized: 主要5場・2勝クラス以上に限定)
 python scripts/scrape_and_save_results.py 2025-12-28
-python scripts/scrape_historical_data.py --years 5
+python scripts/scrape_historical_data.py --years 5  # 東京/中山/阪神/京都/中京, 2勝クラス以上
 
 # ML Pipeline
 python scripts/extract_features.py
@@ -37,6 +37,10 @@ pytest -m "not slow and not integration"
   - Result: `race.netkeiba.com/race/result.html?race_id=YYYYKKRRDDNN`
 - **Rate Limit**: 3秒 delay必須
 - **Class**: `NetkeibaScraper` in `src/scrapers/netkeiba_scraper.py`
+- **Optimization**:
+  - **Tracks**: 東京、中山、阪神、京都、中京 (主要5場)
+  - **Race Class**: 2勝クラス以上 (G1/G2/G3/OP/Listed/3勝/2勝) - 除外: 1勝/未勝利/新馬
+  - **Speed**: ~60% time reduction vs full scraping
 
 ### 2. Database
 - **Schema**: `tracks → races → race_entries → race_results`
