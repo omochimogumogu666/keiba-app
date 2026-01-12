@@ -5,45 +5,47 @@
  */
 
 /* ============================================
-   カラーシステム - クールニュートラル基盤
+   カラーシステム - ダークモード基盤
    ============================================ */
 :root {
-    /* 背景色 */
-    --bg-base: #ffffff;
-    --bg-subtle: #f8fafc;
-    --bg-muted: #f1f5f9;
+    /* 背景色 - ダークグレーベース */
+    --bg-base: #0a0a0a;
+    --bg-elevated: #111111;
+    --bg-subtle: #1a1a1a;
+    --bg-muted: #262626;
 
     /* 文字色階層 */
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --text-faint: #cbd5e1;
+    --text-primary: #f5f5f5;
+    --text-secondary: #a3a3a3;
+    --text-muted: #737373;
+    --text-faint: #525252;
 
     /* ボーダー */
-    --border: rgba(15, 23, 42, 0.08);
-    --border-subtle: rgba(15, 23, 42, 0.04);
-    --border-strong: rgba(15, 23, 42, 0.12);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-subtle: rgba(255, 255, 255, 0.04);
+    --border-strong: rgba(255, 255, 255, 0.12);
 
-    /* アクセントカラー - インディゴブルー（信頼感） */
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --accent-light: #eef2ff;
-    --accent-subtle: #f5f8ff;
+    /* アクセントカラー - ブライトブルー */
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-light: rgba(59, 130, 246, 0.15);
+    --accent-subtle: rgba(59, 130, 246, 0.08);
 
     /* セマンティックカラー */
     --success: #10b981;
-    --success-light: #d1fae5;
+    --success-light: rgba(16, 185, 129, 0.15);
     --warning: #f59e0b;
-    --warning-light: #fef3c7;
+    --warning-light: rgba(245, 158, 11, 0.15);
     --danger: #ef4444;
-    --danger-light: #fee2e2;
+    --danger-light: rgba(239, 68, 68, 0.15);
     --info: #3b82f6;
-    --info-light: #dbeafe;
+    --info-light: rgba(59, 130, 246, 0.15);
 
-    /* シャドウ - 微細 */
-    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-lg: 0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 8px rgba(15, 23, 42, 0.04);
+    /* シャドウ - ダークモード用 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2);
+    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
 
     /* スペーシング - 4pxグリッド */
     --space-1: 4px;
@@ -116,17 +118,23 @@ h4 { font-size: 16px; line-height: 1.4; }
    ナビゲーション
    ============================================ */
 .navbar {
-    background-color: var(--bg-base) !important;
-    border-bottom: 0.5px solid var(--border);
+    background-color: rgba(10, 10, 10, 0.8) !important;
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
     padding: var(--space-3) 0;
-    box-shadow: none;
+    box-shadow: var(--shadow-sm);
 }
 
 .navbar-brand {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 16px;
     color: var(--text-primary) !important;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    transition: color var(--transition-fast);
+}
+
+.navbar-brand:hover {
+    color: var(--accent) !important;
 }
 
 .nav-link {
@@ -149,7 +157,8 @@ h4 { font-size: 16px; line-height: 1.4; }
 }
 
 .dropdown-menu {
-    border: 0.5px solid var(--border);
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     padding: var(--space-2);
@@ -173,22 +182,24 @@ h4 { font-size: 16px; line-height: 1.4; }
    カード
    ============================================ */
 .card {
-    background-color: var(--bg-base);
-    border: 0.5px solid var(--border);
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
     overflow: hidden;
+    backdrop-filter: blur(10px);
 }
 
 .card:hover {
     border-color: var(--border-strong);
     box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .card-header {
     background-color: var(--bg-subtle);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: 1px solid var(--border);
     padding: var(--space-4);
     font-weight: 600;
     font-size: 14px;
@@ -209,27 +220,61 @@ h4 { font-size: 16px; line-height: 1.4; }
 .card-text {
     color: var(--text-secondary);
     font-size: 13px;
+    line-height: 1.6;
 }
 
 /* データカード - 特殊なレイアウト */
 .card-stat {
     padding: var(--space-6);
+    position: relative;
+    overflow: hidden;
+}
+
+.card-stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--info), var(--success));
+    opacity: 0;
+    transition: opacity var(--transition-base);
+}
+
+.card-stat:hover::before {
+    opacity: 1;
 }
 
 .card-stat-label {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.05em;
     margin-bottom: var(--space-2);
 }
 
 .card-stat-value {
-    font-size: 24px;
-    font-weight: 600;
+    font-size: 28px;
+    font-weight: 700;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+/* グラスモーフィズムカード */
+.card-glass {
+    background: rgba(17, 17, 17, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.card-glass:hover {
+    background: rgba(17, 17, 17, 0.7);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), var(--shadow-glow);
 }
 
 /* ============================================
@@ -241,11 +286,11 @@ h4 { font-size: 16px; line-height: 1.4; }
 }
 
 .list-group-item {
-    border: 0.5px solid var(--border);
-    border-width: 0 0 0.5px 0;
-    background-color: var(--bg-base);
+    border: 1px solid var(--border);
+    border-width: 0 0 1px 0;
+    background-color: transparent;
     padding: var(--space-4);
-    transition: background-color var(--transition-fast);
+    transition: all var(--transition-fast);
 }
 
 .list-group-item:first-child {
@@ -258,10 +303,13 @@ h4 { font-size: 16px; line-height: 1.4; }
 
 .list-group-item:hover {
     background-color: var(--bg-subtle);
+    padding-left: calc(var(--space-4) + 4px);
 }
 
 .list-group-item-action {
     cursor: pointer;
+    color: var(--text-primary);
+    text-decoration: none;
 }
 
 /* ============================================
@@ -278,14 +326,14 @@ h4 { font-size: 16px; line-height: 1.4; }
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-strong);
     padding: var(--space-3) var(--space-4);
     background-color: var(--bg-subtle);
 }
 
 .table tbody td {
     padding: var(--space-4);
-    border-bottom: 0.5px solid var(--border);
+    border-bottom: 1px solid var(--border);
     vertical-align: middle;
 }
 
@@ -293,8 +341,13 @@ h4 { font-size: 16px; line-height: 1.4; }
     border-bottom: none;
 }
 
+.table-hover tbody tr {
+    transition: all var(--transition-fast);
+}
+
 .table-hover tbody tr:hover {
     background-color: var(--bg-subtle);
+    transform: scale(1.01);
 }
 
 /* ============================================
@@ -464,14 +517,15 @@ h4 { font-size: 16px; line-height: 1.4; }
    ============================================ */
 footer {
     margin-top: auto;
-    background-color: var(--bg-base);
-    border-top: 0.5px solid var(--border);
+    background-color: var(--bg-elevated);
+    border-top: 1px solid var(--border);
     padding: var(--space-8) 0;
 }
 
 footer p {
     font-size: 12px;
     color: var(--text-muted);
+    margin: 0;
 }
 
 /* ============================================
@@ -503,6 +557,40 @@ footer p {
 }
 
 /* ============================================
+   グラフ用スタイル
+   ============================================ */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: var(--space-4) 0;
+}
+
+.chart-card {
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+}
+
+.chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-4);
+}
+
+/* グラフのツールチップカスタマイズ */
+.chartjs-tooltip {
+    background-color: var(--bg-elevated) !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--text-primary) !important;
+    padding: var(--space-3) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* ============================================
    レスポンシブ
    ============================================ */
 @media (max-width: 768px) {
@@ -514,4 +602,5 @@ footer p {
     .card-body { padding: var(--space-4); }
     .table { font-size: 12px; }
     .navbar-brand { font-size: 15px; }
+    .chart-container { height: 250px; }
 }

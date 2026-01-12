@@ -21,7 +21,9 @@
       "Bash(docker-compose exec:*)",
       "Bash(lsof:*)",
       "Bash(ps:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

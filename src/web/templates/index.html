@@ -146,8 +146,31 @@
     </div>
 </div>
 
+<!-- Charts Section -->
+<div class="row mt-5 pt-5" style="border-top: 1px solid var(--border);">
+    <div class="col-12 mb-4">
+        <h3>統計情報</h3>
+    </div>
+    <div class="col-lg-8 mb-4">
+        <div class="card chart-card">
+            <div class="chart-title">週別レース数推移</div>
+            <div class="chart-container">
+                <canvas id="weeklyRacesChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card chart-card">
+            <div class="chart-title">競馬場別レース数</div>
+            <div class="chart-container">
+                <canvas id="trackDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Features Section -->
-<div class="row mt-5 pt-5" style="border-top: 0.5px solid var(--border);">
+<div class="row mt-5 pt-5" style="border-top: 1px solid var(--border);">
     <div class="col-12 mb-4">
         <h3>主な機能</h3>
     </div>
@@ -185,4 +208,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 週別レース数推移グラフ
+    const chartLabels = {{ chart_labels | tojson | safe }};
+    const chartData = {{ chart_data | tojson | safe }};
+
+    if (chartLabels && chartLabels.length > 0) {
+        window.chartUtils.createWinRateChart('weeklyRacesChart', chartLabels, chartData);
+    }
+
+    // 競馬場別レース数グラフ
+    const trackLabels = {{ track_labels | tojson | safe }};
+    const trackData = {{ track_data | tojson | safe }};
+
+    if (trackLabels && trackLabels.length > 0) {
+        window.chartUtils.createDistributionChart('trackDistributionChart', trackLabels, trackData);
+    }
+});
+</script>
 {% endblock %}

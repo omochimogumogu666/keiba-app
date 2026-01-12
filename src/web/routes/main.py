@@ -30,10 +30,51 @@ def index():
         Race.status == 'completed'
     ).order_by(Race.race_date.desc()).limit(5).all()
 
+    # Get statistics for charts
+    # 週別レース数統計
+    weeks_ago = today - timedelta(days=56)  # 8週間分
+    try:
+        # PostgreSQL用のクエリ (to_char関数を使用)
+        race_stats = db.session.query(
+            func.to_char(Race.race_date, 'IYYY-IW').label('week'),
+            func.count(Race.id).label('count')
+        ).filter(
+            Race.race_date >= weeks_ago,
+            Race.status == 'completed'
+        ).group_by('week').order_by('week').all()
+    except Exception:
+        # SQLite用のクエリ (strftime関数を使用)
+        race_stats = db.session.query(
+            func.strftime('%Y-%W', Race.race_date).label('week'),
+            func.count(Race.id).label('count')
+        ).filter(
+            Race.race_date >= weeks_ago,
+            Race.status == 'completed'
+        ).group_by('week').order_by('week').all()
+
+    chart_labels = [f'第{i+1}週' for i in range(len(race_stats))] if race_stats else []
+    chart_data = [stat.count for stat in race_stats] if race_stats else []
+
+    # 競馬場別レース数
+    track_stats = db.session.query(
+        Track.name,
+        func.count(Race.id).label('count')
+    ).join(Race).filter(
+        Race.race_date >= weeks_ago,
+        Race.status == 'completed'
+    ).group_by(Track.name).order_by(func.count(Race.id).desc()).limit(5).all()
+
+    track_labels = [stat.name for stat in track_stats] if track_stats else []
+    track_data = [stat.count for stat in track_stats] if track_stats else []
+
     return render_template(
         'index.html',
         upcoming_races=upcoming_races,
-        recent_races=recent_races
+        recent_races=recent_races,
+        chart_labels=chart_labels,
+        chart_data=chart_data,
+        track_labels=track_labels,
+        track_data=track_data
     )
 
 
