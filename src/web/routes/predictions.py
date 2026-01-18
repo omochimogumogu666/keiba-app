@@ -1,9 +1,15 @@
 """
 Prediction routes for the web application.
+
+予測画面のルートと、予測タスク実行APIを提供します。
 """
-from flask import Blueprint, render_template, jsonify
+import json
+import time
+from datetime import datetime, date
+from flask import Blueprint, render_template, jsonify, request, Response, current_app
 from sqlalchemy.orm import joinedload
 from src.data.models import db, Race, Prediction, RaceEntry, RaceResult
+from src.web.prediction_manager import prediction_task_manager
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -151,3 +157,195 @@ def prediction_accuracy():
         'predictions/accuracy.html',
         stats=stats
     )
+
+
+# ============================================================================
+# 予測タスク実行API
+# ============================================================================
+
+@predictions_bp.route('/generate')
+def generate_predictions_page():
+    """予測生成画面を表示"""
+    running_task = prediction_task_manager.get_running_task()
+    recent_tasks = prediction_task_manager.get_recent_tasks(limit=5)
+
+    # 今日のレース（upcoming）を取得
+    today = date.today()
+    today_races = db.session.query(Race).filter(
+        Race.race_date == today,
+        Race.status == 'upcoming'
+    ).order_by(Race.race_number).all()
+
+    # 今日の予測済みレースを取得
+    today_predicted_races = db.session.query(Race).join(Prediction).filter(
+        Race.race_date == today
+    ).distinct().order_by(Race.race_number).all()
+
+    return render_template(
+        'predictions/generate.html',
+        running_task=running_task,
+        recent_tasks=recent_tasks,
+        today_races=today_races,
+        today_predicted_races=today_predicted_races,
+        today=today
+    )
+
+
+@predictions_bp.route('/api/generate/start', methods=['POST'])
+def api_start_prediction():
+    """
+    予測タスクを開始
+
+    Request JSON:
+    {
+        "date": "2025-01-17",  // optional, default: today
+        "model_type": "xgboost",  // optional, default: xgboost
+        "skip_scraping": false  // optional, default: false
+    }
+
+    Response JSON:
+    {
+        "success": true,
+        "task_id": "uuid-string"
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+
+        # 日付をパース
+        date_str = data.get('date')
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'error': '日付形式が不正です (YYYY-MM-DD)'
+                }), 400
+        else:
+            target_date = date.today()
+
+        model_type = data.get('model_type', 'xgboost')
+        if model_type not in ('xgboost', 'random_forest'):
+            return jsonify({
+                'success': False,
+                'error': 'モデルタイプは xgboost または random_forest を指定してください'
+            }), 400
+
+        skip_scraping = data.get('skip_scraping', False)
+        scraper_delay = max(2, data.get('scraper_delay', 3))
+
+        # タスクを開始
+        success, result, error_type = prediction_task_manager.start_task(
+            app=current_app._get_current_object(),
+            target_date=target_date,
+            model_type=model_type,
+            skip_scraping=skip_scraping,
+            scraper_delay=scraper_delay
+        )
+
+        if success:
+            logger.info(f"Started prediction task: {result}")
+            return jsonify({
+                'success': True,
+                'task_id': result
+            })
+        else:
+            status_code = 409 if error_type == 'concurrent_limit' else 400
+            return jsonify({
+                'success': False,
+                'error': result,
+                'error_type': error_type
+            }), status_code
+
+    except Exception as e:
+        logger.exception("Error starting prediction task")
+        return jsonify({
+            'success': False,
+            'error': f'内部エラー: {str(e)}'
+        }), 500
+
+
+@predictions_bp.route('/api/generate/progress/<task_id>')
+def api_prediction_progress_stream(task_id):
+    """
+    SSEエンドポイント - リアルタイム予測進捗配信
+
+    Returns Server-Sent Events stream with progress updates.
+    """
+    def generate():
+        last_update = None
+
+        while True:
+            progress = prediction_task_manager.get_progress(task_id)
+
+            if not progress:
+                yield f"event: error\ndata: {json.dumps({'error': 'タスクが見つかりません'})}\n\n"
+                break
+
+            current_update = progress.get('updated_at')
+            if current_update != last_update:
+                yield f"data: {json.dumps(progress)}\n\n"
+                last_update = current_update
+
+            if progress['status'] in ('completed', 'failed', 'cancelled'):
+                yield f"event: complete\ndata: {json.dumps(progress)}\n\n"
+                break
+
+            time.sleep(0.5)
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive'
+        }
+    )
+
+
+@predictions_bp.route('/api/generate/status/<task_id>')
+def api_prediction_status(task_id):
+    """タスク状態を取得（非ストリーミング）"""
+    progress = prediction_task_manager.get_progress(task_id)
+
+    if not progress:
+        return jsonify({
+            'success': False,
+            'error': 'タスクが見つかりません'
+        }), 404
+
+    return jsonify({
+        'success': True,
+        'task': progress
+    })
+
+
+@predictions_bp.route('/api/generate/cancel/<task_id>', methods=['POST'])
+def api_cancel_prediction(task_id):
+    """タスクをキャンセル"""
+    success = prediction_task_manager.cancel_task(task_id)
+
+    if success:
+        logger.info(f"Cancelled prediction task: {task_id}")
+        return jsonify({
+            'success': True,
+            'message': 'キャンセルをリクエストしました'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'タスクが見つからないか、既に完了しています'
+        }), 404
+
+
+@predictions_bp.route('/api/generate/running')
+def api_get_running_prediction():
+    """実行中のタスクを取得"""
+    running_task = prediction_task_manager.get_running_task()
+
+    return jsonify({
+        'success': True,
+        'task': running_task
+    })

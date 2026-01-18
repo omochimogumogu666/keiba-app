@@ -3,11 +3,15 @@
 JRA競馬予想アプリケーション - Horse racing prediction app with ML models.
 **Stack**: Python 3.9+, Flask, SQLAlchemy, BeautifulSoup4, scikit-learn, XGBoost
 
+##　Rules to Always Follow
+
+-　Always perform environment setup on Docker; do not install locally.
+
 ## Quick Start
 
 ```bash
 ./quickstart.sh  # Docker (recommended)
-python run.py    # Local server: http://localhost:5000
+python run.py    # Local server: http://localhost:5001
 ```
 
 ## Core Commands

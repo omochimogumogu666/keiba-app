@@ -401,7 +401,7 @@ python run.py
 python -m src.web.app
 ```
 
-ブラウザで `http://localhost:5000` にアクセス。
+ブラウザで `http://localhost:5001` にアクセス。
 
 ## プロジェクト構造
 

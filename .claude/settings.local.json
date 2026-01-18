@@ -23,7 +23,16 @@
       "Bash(ps:*)",
       "Bash(sort:*)",
       "Bash(docker-compose up:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(grep:*)",
+      "Skill(glm-plan-usage:usage-query)",
+      "Skill(glm-plan-usage:usage-query-skill)",
+      "Bash(git checkout:*)",
+      "Bash(xargs ls:*)",
+      "Bash(docker system:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose build:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

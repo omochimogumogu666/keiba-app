@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="機械学習による高精度な競馬予想システム">
+    <meta name="theme-color" content="#0a0e1a">
     <title>{% block title %}JRA競馬予想アプリ{% endblock %}</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -23,52 +29,65 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="bi bi-trophy"></i> JRA競馬予想
+                <i class="bi bi-trophy-fill"></i>
+                <span>JRA競馬予想</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.index') }}">
-                            <i class="bi bi-house"></i> ホーム
+                        <a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}" href="{{ url_for('main.index') }}">
+                            <i class="bi bi-house-door"></i> ホーム
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.race_list') }}">
-                            <i class="bi bi-list-ul"></i> レース一覧
+                        <a class="nav-link {% if request.endpoint == 'main.race_list' %}active{% endif %}" href="{{ url_for('main.race_list') }}">
+                            <i class="bi bi-calendar3"></i> レース一覧
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.results_list') }}">
-                            <i class="bi bi-trophy-fill"></i> レース結果
+                        <a class="nav-link {% if request.endpoint == 'main.results_list' %}active{% endif %}" href="{{ url_for('main.results_list') }}">
+                            <i class="bi bi-flag-fill"></i> レース結果
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('predictions.predictions_index') }}">
-                            <i class="bi bi-graph-up"></i> 予想
+                        <a class="nav-link {% if 'predictions' in request.endpoint %}active{% endif %}" href="{{ url_for('predictions.predictions_index') }}">
+                            <i class="bi bi-lightning-charge-fill"></i> 予想
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-database"></i> データ
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-database-fill"></i> データ
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('entities.horse_list') }}">
-                                <i class="bi bi-award"></i> 馬一覧
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('entities.jockey_list') }}">
-                                <i class="bi bi-person-badge"></i> 騎手一覧
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('entities.trainer_list') }}">
-                                <i class="bi bi-person-workspace"></i> 調教師一覧
-                            </a></li>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('entities.horse_list') }}">
+                                    <i class="bi bi-trophy"></i> 馬一覧
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('entities.jockey_list') }}">
+                                    <i class="bi bi-person-fill"></i> 騎手一覧
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('entities.trainer_list') }}">
+                                    <i class="bi bi-person-badge-fill"></i> 調教師一覧
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('scraping.index') }}">
+                                    <i class="bi bi-cloud-arrow-down-fill"></i> スクレイピング
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 </ul>
-                <form class="d-flex" method="get" action="{{ url_for('search.search') }}">
-                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="検索..." aria-label="Search" style="width: 200px;">
+                <form class="d-flex" method="get" action="{{ url_for('search.search') }}" role="search">
+                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="馬名・騎手名で検索..." aria-label="検索" style="width: 220px;">
                     <button class="btn btn-outline-primary btn-sm" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -80,11 +99,20 @@
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="container mt-3">
+            <div class="container mt-4">
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        {% if category == 'success' %}
+                            <i class="bi bi-check-circle-fill"></i>
+                        {% elif category == 'danger' %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill"></i>
+                        {% endif %}
+                        <span>{{ message }}</span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             </div>
@@ -92,17 +120,24 @@
     {% endwith %}
 
     <!-- Main Content -->
-    <main class="container my-4">
+    <main class="container my-5">
         {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="mt-5">
-        <div class="container text-center">
-            <p class="mb-2">&copy; 2026 JRA競馬予想アプリ</p>
-            <p class="mb-0">
-                免責事項: この予想は参考情報です。実際の馬券購入は自己責任で行ってください。
-            </p>
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <i class="bi bi-trophy-fill"></i>
+                    <span>JRA競馬予想</span>
+                </div>
+                <p>&copy; 2026 JRA競馬予想アプリ - Machine Learning Powered</p>
+                <p class="disclaimer">
+                    <i class="bi bi-shield-exclamation"></i>
+                    免責事項: この予想は参考情報であり、馬券購入を推奨するものではありません。実際の馬券購入は自己責任で行ってください。
+                </p>
+            </div>
         </div>
     </footer>
 

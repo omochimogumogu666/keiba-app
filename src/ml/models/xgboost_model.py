@@ -21,6 +21,15 @@ from src.utils.logger import get_app_logger
 logger = get_app_logger(__name__)
 
 
+def _load_optimized_params(model_type: str, task: str, params_dir: str = 'data/models'):
+    """最適化済みパラメータを読み込むヘルパー関数"""
+    from src.ml.hyperparameter_tuning import find_latest_params, load_best_params
+    params_path = find_latest_params(model_type, task, params_dir)
+    if params_path is None:
+        return None
+    return load_best_params(params_path)
+
+
 class XGBoostRaceModel(BaseRaceModel):
     """
     XGBoost model for race prediction.
@@ -80,6 +89,36 @@ class XGBoostRaceModel(BaseRaceModel):
             self.model = xgb.XGBClassifier(**self.params)
         else:
             raise ValueError(f"Unknown task: {task}. Must be 'regression' or 'classification'")
+
+    @classmethod
+    def from_optimized_params(
+        cls,
+        task: str = 'regression',
+        params_dir: str = 'data/models',
+        version: str = "optimized"
+    ) -> 'XGBoostRaceModel':
+        """
+        最適化済みパラメータからモデルを作成する。
+
+        Args:
+            task: 'regression' or 'classification'
+            params_dir: パラメータ保存ディレクトリ
+            version: モデルバージョン
+
+        Returns:
+            最適化パラメータで初期化されたXGBoostRaceModel
+
+        Raises:
+            FileNotFoundError: 最適化パラメータが見つからない場合
+        """
+        params = _load_optimized_params('xgboost', task, params_dir)
+        if params is None:
+            raise FileNotFoundError(
+                f"Optimized parameters not found for xgboost_{task} in {params_dir}. "
+                f"Run 'python scripts/optimize_hyperparameters.py --model xgboost --task {task}' first."
+            )
+        logger.info(f"Creating XGBoostRaceModel with optimized params: {params}")
+        return cls(task=task, version=version, **params)
 
     def train(
         self,

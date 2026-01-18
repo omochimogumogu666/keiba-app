@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}今日のレース予想 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><i class="bi bi-lightning-charge"></i> 今日のレース予想</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Configuration Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> 予想設定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="predictionForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="targetDate" class="form-label">予想日</label>
+                                <input type="date" class="form-control" id="targetDate" name="date" value="{{ today }}">
+                                <small class="text-muted">今日以降の日付を指定可能</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="modelType" class="form-label">使用モデル</label>
+                                <select class="form-select" id="modelType" name="model_type">
+                                    <option value="xgboost" selected>XGBoost (推奨)</option>
+                                    <option value="random_forest">Random Forest</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="skipScraping" name="skip_scraping">
+                                <label class="form-check-label" for="skipScraping">
+                                    スクレイピングをスキップ
+                                </label>
+                            </div>
+                            <small class="text-muted">既にデータベースにレース情報がある場合に使用</small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="startPredictionBtn">
+                                <i class="bi bi-play-circle"></i> 予想を開始
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Progress Card (hidden initially) -->
+            <div class="card mb-4" id="progressCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> 予想生成中</h5>
+                    <button class="btn btn-outline-danger btn-sm" id="cancelBtn">
+                        <i class="bi bi-x-circle"></i> キャンセル
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span id="progressStatus">準備中...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progressBar"
+                                 role="progressbar"
+                                 style="width: 0%"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row text-center" id="progressStats">
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statRacesFound">0</div>
+                                <small class="text-muted">レース発見</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statRacesProcessed">0</div>
+                                <small class="text-muted">処理済み</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statPredictions">0</div>
+                                <small class="text-muted">予測生成</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 small" id="currentOperation">
+                        <i class="bi bi-arrow-right"></i> <span id="currentOpText">初期化中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Card (hidden initially) -->
+            <div class="card mb-4" id="resultCard" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0" id="resultTitle">
+                        <i class="bi bi-check-circle text-success"></i> 予想完了
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="h4 text-primary" id="resultRaces">0</div>
+                            <small class="text-muted">レース</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-success" id="resultPredictions">0</div>
+                            <small class="text-muted">予測数</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-info" id="resultModel">-</div>
+                            <small class="text-muted">使用モデル</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('predictions.predictions_index') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-list-check"></i> 予想一覧を見る
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Card (hidden initially) -->
+            <div class="card mb-4 border-danger" id="errorCard" style="display: none;">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> エラー</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0" id="errorMessage">不明なエラーが発生しました</p>
+                </div>
+            </div>
+
+            <!-- Today's Predicted Races -->
+            {% if today_predicted_races %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-calendar-check"></i> 今日の予測済みレース</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for race in today_predicted_races %}
+                        <a href="{{ url_for('predictions.race_predictions', race_id=race.id) }}"
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <span>
+                                    {{ race.track.name if race.track else '競馬場' }}
+                                    {{ race.race_number }}R
+                                    {% if race.race_name %}
+                                    - {{ race.race_name }}
+                                    {% endif %}
+                                </span>
+                                <span class="badge bg-success">予測済み</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <!-- Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> 使い方</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="small mb-0">
+                        <li class="mb-2">予想したい日付を選択</li>
+                        <li class="mb-2">使用するモデルを選択（XGBoostを推奨）</li>
+                        <li class="mb-2">「予想を開始」をクリック</li>
+                        <li>完了後、予想一覧から結果を確認</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Processing Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear-wide-connected"></i> 処理内容</h5>
+                </div>
+                <div class="card-body small">
+                    <p class="mb-2"><strong>1. レース情報の取得</strong></p>
+                    <p class="text-muted mb-3">netkeibaから出馬表をスクレイピング</p>
+
+                    <p class="mb-2"><strong>2. 特徴量の抽出</strong></p>
+                    <p class="text-muted mb-3">過去の戦績から40以上の特徴量を計算</p>
+
+                    <p class="mb-2"><strong>3. 予測の生成</strong></p>
+                    <p class="text-muted mb-0">訓練済みモデルで着順・勝率を予測</p>
+                </div>
+            </div>
+
+            <!-- Today's Data Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-database"></i> 今日のデータ状況</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>データベース内のレース:</strong>
+                        <span class="badge bg-primary">{{ today_races|length }}件</span>
+                    </p>
+                    <p class="mb-0">
+                        <strong>予測済みレース:</strong>
+                        <span class="badge bg-success">{{ today_predicted_races|length }}件</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Recent Tasks -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> 最近の実行</h5>
+                </div>
+                <div class="card-body" id="recentTasks">
+                    {% if recent_tasks %}
+                    <ul class="list-unstyled small mb-0">
+                        {% for task in recent_tasks %}
+                        <li class="mb-2 pb-2 border-bottom">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    {% if task.status == 'completed' %}
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    {% elif task.status == 'failed' %}
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                    {% elif task.status == 'cancelled' %}
+                                    <i class="bi bi-slash-circle text-warning"></i>
+                                    {% else %}
+                                    <i class="bi bi-hourglass-split text-primary"></i>
+                                    {% endif %}
+                                    {{ task.params.target_date }}
+                                </span>
+                                <span class="text-muted">{{ task.params.model_type }}</span>
+                            </div>
+                            <small class="text-muted">{{ task.started_at[:16] }}</small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="small text-muted mb-0">実行履歴はありません</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/predictions.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const predictionManager = new PredictionManager();
+
+    // Check for running task on page load
+    {% if running_task %}
+    predictionManager.resumeTask('{{ running_task.task_id }}');
+    {% endif %}
+});
+</script>
+{% endblock %}

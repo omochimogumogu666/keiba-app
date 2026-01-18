@@ -8,4 +8,21 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #10 | 11:49 PM | 🟣 | Modern Design System Implementation for Horse Racing Web App | ~721 |
+
+### Jan 16, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #323 | 12:26 AM | 🟣 | CSS completely rewritten with clean modern dashboard design | ~677 |
+| #319 | 12:24 AM | 🔵 | CSS file read for redesign implementation | ~344 |
+| #316 | " | 🔵 | UI redesign plan created for keiba-app | ~355 |
+
+### Jan 17, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #424 | 12:17 AM | 🔴 | Fixed Bootstrap utility class color conflicts with dark theme | ~375 |
+| #422 | " | 🔴 | Fixed table readability and white background issues in race lists | ~342 |
+| #418 | 12:11 AM | 🟣 | Home page redesigned with premium bento grid layout and enhanced visual hierarchy | ~486 |
+| #416 | 12:10 AM | 🟣 | Complete UI redesign to Premium Racing Terminal theme | ~496 |
 </claude-mem-context>

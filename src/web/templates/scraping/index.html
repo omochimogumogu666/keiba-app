@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}データスクレイピング{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><i class="bi bi-cloud-download"></i> データスクレイピング</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Configuration Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> スクレイピング設定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="scrapingForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">開始日 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="startDate" name="start_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label">終了日 <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="endDate" name="end_date" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="weekendsOnly" name="weekends_only" checked>
+                                <label class="form-check-label" for="weekendsOnly">
+                                    週末のみ（土日）
+                                </label>
+                            </div>
+                            <small class="text-muted">JRAレースは主に土日に開催されます</small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="startScrapingBtn">
+                                <i class="bi bi-play-circle"></i> スクレイピング開始
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Progress Card (hidden initially) -->
+            <div class="card mb-4" id="progressCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> 実行中</h5>
+                    <button class="btn btn-outline-danger btn-sm" id="cancelBtn">
+                        <i class="bi bi-x-circle"></i> キャンセル
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span id="progressStatus">準備中...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progressBar"
+                                 role="progressbar"
+                                 style="width: 0%"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row text-center" id="progressStats">
+                        <div class="col-3">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statDates">0/0</div>
+                                <small class="text-muted">日数</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statRaces">0</div>
+                                <small class="text-muted">レース</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statEntries">0</div>
+                                <small class="text-muted">出走</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statResults">0</div>
+                                <small class="text-muted">結果</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 small" id="currentOperation">
+                        <i class="bi bi-arrow-right"></i> <span id="currentOpText">初期化中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Card (hidden initially) -->
+            <div class="card mb-4" id="resultCard" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0" id="resultTitle">
+                        <i class="bi bi-check-circle text-success"></i> 完了
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="resultStats">
+                        <div class="col-md-6">
+                            <h6>日数</h6>
+                            <ul class="list-unstyled small">
+                                <li>処理日数: <strong id="resultDatesProcessed">0</strong></li>
+                                <li>レースなし: <strong id="resultDatesNoRaces">0</strong></li>
+                                <li>失敗: <strong id="resultDatesFailed">0</strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>レース</h6>
+                            <ul class="list-unstyled small">
+                                <li>発見: <strong id="resultRacesFound">0</strong></li>
+                                <li>完了: <strong id="resultRacesCompleted">0</strong></li>
+                                <li>除外(トラック): <strong id="resultRacesFilteredTrack">0</strong></li>
+                                <li>除外(クラス): <strong id="resultRacesFilteredClass">0</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="h4 text-primary" id="resultEntriesSaved">0</div>
+                            <small class="text-muted">エントリー保存</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h4 text-success" id="resultResultsSaved">0</div>
+                            <small class="text-muted">結果保存</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h4 text-info" id="resultPayoutsSaved">0</div>
+                            <small class="text-muted">払戻保存</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <p class="mb-0 small text-muted">
+                        実行時間: <strong id="resultDuration">-</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Error Card (hidden initially) -->
+            <div class="card mb-4 border-danger" id="errorCard" style="display: none;">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> エラー</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0" id="errorMessage">不明なエラーが発生しました</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> 使い方</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="small">
+                        <li>スクレイピング期間を指定</li>
+                        <li>必要に応じて週末のみオプションを設定</li>
+                        <li>「スクレイピング開始」をクリック</li>
+                        <li>プログレスバーで進行状況を確認</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Filtering Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-funnel"></i> フィルタリング</h5>
+                </div>
+                <div class="card-body small">
+                    <p class="mb-2"><strong>対象競馬場:</strong></p>
+                    <p class="mb-2">東京、中山、阪神、京都、中京</p>
+                    <p class="mb-2"><strong>対象レースクラス:</strong></p>
+                    <p class="mb-0">2勝クラス以上<br>
+                    <span class="text-muted">(G1/G2/G3/OP/Listed/3勝/2勝)</span></p>
+                </div>
+            </div>
+
+            <!-- Recent Tasks -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> 最近の実行</h5>
+                </div>
+                <div class="card-body" id="recentTasks">
+                    {% if recent_tasks %}
+                        <ul class="list-unstyled small mb-0">
+                        {% for task in recent_tasks %}
+                            <li class="mb-2 pb-2 border-bottom">
+                                <div class="d-flex justify-content-between">
+                                    <span>
+                                        {% if task.status == 'completed' %}
+                                            <i class="bi bi-check-circle text-success"></i>
+                                        {% elif task.status == 'failed' %}
+                                            <i class="bi bi-x-circle text-danger"></i>
+                                        {% elif task.status == 'cancelled' %}
+                                            <i class="bi bi-slash-circle text-warning"></i>
+                                        {% else %}
+                                            <i class="bi bi-hourglass-split text-primary"></i>
+                                        {% endif %}
+                                        {{ task.params.start_date }} - {{ task.params.end_date }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ task.started_at[:16] }}</small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="small text-muted mb-0">実行履歴はありません</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/scraping.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scrapingManager = new ScrapingManager();
+
+    // Set default date values
+    const today = new Date();
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    document.getElementById('endDate').valueAsDate = today;
+    document.getElementById('startDate').valueAsDate = oneWeekAgo;
+
+    // Check for running task on page load
+    {% if running_task %}
+    scrapingManager.resumeTask('{{ running_task.task_id }}');
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -7,5 +7,6 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #384 | 11:44 PM | 🔵 | Web application uses route-based architecture with API endpoints | ~214 |
+| #406 | 11:48 PM | 🔵 | Simulation index template demonstrates form-based task execution with loading indicator | ~381 |
+| #405 | 11:47 PM | 🔵 | Template structure organized by feature with base template inheritance | ~279 |
 </claude-mem-context>

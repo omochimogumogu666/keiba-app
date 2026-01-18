@@ -832,34 +832,105 @@ class NetkeibaScraper:
                 if not bet_type:
                     continue
 
-                # Find payout cells
-                payout_tds = row.find_all('td')
+                # Find the Result td (contains horse numbers)
+                result_td = row.find('td', class_='Result')
+                # Find the Payout td (contains payout amounts)
+                payout_td = row.find('td', class_='Payout')
+                # Find the Ninki td (contains popularity)
+                ninki_td = row.find('td', class_='Ninki')
 
+                if not result_td or not payout_td:
+                    logger.debug(f"Missing Result or Payout td for {bet_type}")
+                    continue
+
+                # Extract horse numbers/combinations
+                combinations = []
+                # Try finding spans in divs first (for single/place bets)
+                divs = result_td.find_all('div')
+                if divs:
+                    for div in divs:
+                        span = div.find('span')
+                        if span:
+                            num_text = self._clean_text(span.get_text())
+                            if num_text:
+                                combinations.append(num_text)
+                else:
+                    # Try finding ul/li structure (for quinella/exacta/etc.)
+                    # Note: there may be multiple <ul> elements for multiple combinations
+                    uls = result_td.find_all('ul')
+                    if uls:
+                        for ul in uls:
+                            lis = ul.find_all('li')
+                            combo_parts = []
+                            for li in lis:
+                                span = li.find('span')
+                                if span:
+                                    num_text = self._clean_text(span.get_text())
+                                    if num_text:
+                                        combo_parts.append(num_text)
+                            if combo_parts:
+                                combinations.append('-'.join(combo_parts))
+
+                # Extract payout amounts
+                payout_amounts = []
+                payout_span = payout_td.find('span')
+                if payout_span:
+                    # Split by <br> tags to handle multiple payouts
+                    # First, replace <br> with a delimiter, then get text
+                    import re
+                    # Get HTML string and split by <br> tags
+                    payout_html = str(payout_span)
+                    # Split by <br> or <br/> or <br />
+                    payout_parts = re.split(r'<br\s*/?>', payout_html)
+
+                    for part in payout_parts:
+                        # Remove HTML tags and get just the text
+                        part_soup = BeautifulSoup(part, 'html.parser')
+                        part_text = self._clean_text(part_soup.get_text())
+
+                        if part_text and '円' in part_text:
+                            payout_str = part_text.replace(',', '').replace('円', '').replace('¥', '')
+                            payout_str = ''.join(c for c in payout_str if c.isdigit())
+                            if payout_str:
+                                try:
+                                    payout_amounts.append(int(payout_str))
+                                except ValueError:
+                                    continue
+
+                # Extract popularity (optional)
+                popularities = []
+                if ninki_td:
+                    ninki_spans = ninki_td.find_all('span')
+                    for span in ninki_spans:
+                        ninki_text = self._clean_text(span.get_text())
+                        if ninki_text and '人気' in ninki_text:
+                            ninki_num = ninki_text.replace('人気', '')
+                            try:
+                                popularities.append(int(ninki_num))
+                            except ValueError:
+                                popularities.append(None)
+
+                # Build payout list
                 payout_list = []
-                for td in payout_tds:
-                    # Extract combination and payout
-                    td_text = self._clean_text(td.get_text())
-
-                    # Pattern: "1-2" or "1" followed by payout amount
-                    parts = td_text.split()
-                    if len(parts) >= 2:
-                        combination = parts[0]
-                        payout_str = parts[1].replace(',', '').replace('円', '')
-
-                        try:
-                            payout_amount = int(payout_str)
-                            payout_list.append({
-                                'combination': combination,
-                                'payout': payout_amount
-                            })
-                        except ValueError:
-                            continue
+                for i, combination in enumerate(combinations):
+                    if i < len(payout_amounts):
+                        payout_info = {
+                            'combination': combination,
+                            'payout': payout_amounts[i]
+                        }
+                        if i < len(popularities):
+                            payout_info['popularity'] = popularities[i]
+                        payout_list.append(payout_info)
+                        logger.debug(f"Parsed payout: {bet_type} {combination} = {payout_amounts[i]}円")
 
                 if payout_list:
                     payouts[bet_type] = payout_list
+                    logger.debug(f"Parsed {len(payout_list)} {bet_type} payout(s)")
+                else:
+                    logger.debug(f"No payouts found for {bet_type}")
 
             except Exception as e:
-                logger.error(f"Error parsing payout row: {e}")
+                logger.error(f"Error parsing payout row: {e}", exc_info=True)
                 continue
 
         return payouts

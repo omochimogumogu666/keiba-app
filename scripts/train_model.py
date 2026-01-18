@@ -210,12 +210,13 @@ def main():
 
     logger.info(f"Train size: {len(X_train)}, Val size: {len(X_val)}, Test size: {len(X_test)}")
 
-    # Preprocess features
+    # Preprocess features (exclude ID columns from training data)
     logger.info("Preprocessing features")
     preprocessor = FeaturePreprocessor()
     X_train_scaled = preprocessor.fit_transform(X_train)
     X_val_scaled = preprocessor.transform(X_val) if X_val is not None else None
-    X_test_scaled = preprocessor.transform(X_test)
+    # Keep identifiers in test set for ranking evaluation
+    X_test_scaled = preprocessor.transform(X_test, keep_identifiers=True)
 
     # Create target variable based on task
     if args.task == 'classification':

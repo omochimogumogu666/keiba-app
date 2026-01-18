@@ -28,4 +28,28 @@
 | #261 | " | 🟣 | Implemented race class and track filtering for scraping optimization | ~401 |
 | #260 | 1:16 PM | 🟣 | Implemented dual-filter scraping optimization for race class and track | ~372 |
 | #258 | " | 🔵 | Historical data scraper architecture and workflow | ~437 |
+
+### Jan 16, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #408 | 11:48 PM | 🔵 | Comprehensive scraping scripts analysis reveals clear progress tracking integration points | ~415 |
+| #397 | 11:46 PM | 🔵 | predict_upcoming_races script shows pattern for scraping with progress logging | ~319 |
+| #391 | 11:45 PM | 🔵 | Scripts directory contains multiple data processing and maintenance scripts | ~299 |
+| #385 | 11:44 PM | 🔵 | Scraping script uses Flask app context and incremental progress tracking | ~306 |
+| #381 | 11:43 PM | 🔵 | Scraping script located in scripts directory | ~184 |
+| #358 | 1:45 AM | 🔵 | Comprehensive ML pipeline analysis reveals multiple improvement opportunities | ~489 |
+| #357 | " | 🔵 | Feature extraction script automates ML data preparation | ~311 |
+| #349 | 1:44 AM | 🔵 | Prediction script automates race scraping and forecasting | ~310 |
+| #343 | 1:43 AM | 🔵 | Training script implements complete ML pipeline | ~304 |
+| #339 | 1:42 AM | 🔵 | Comprehensive scripts directory structure identified | ~267 |
+
+### Jan 19, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #559 | 1:58 AM | 🟣 | Updated training script to exclude ID columns from train/val sets while keeping them in test set | ~334 |
+| #555 | 1:57 AM | 🔵 | Training script includes ID columns (race_id, horse_id, race_entry_id) in features causing potential data leakage | ~352 |
+| #525 | 1:33 AM | 🔵 | Model training script implements complete ML pipeline with evaluation metrics | ~332 |
+| #523 | " | 🔵 | Prediction script automates race prediction workflow with model selection | ~239 |
 </claude-mem-context>

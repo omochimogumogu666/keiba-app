@@ -63,12 +63,14 @@ class FeaturePreprocessor:
 
         return self
 
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, keep_identifiers: bool = False) -> pd.DataFrame:
         """
         Transform features using fitted preprocessor.
 
         Args:
             X: Features DataFrame to transform
+            keep_identifiers: If True, keep ID columns in output (for prediction/evaluation).
+                             If False, exclude ID columns (for training).
 
         Returns:
             Transformed DataFrame
@@ -77,10 +79,6 @@ class FeaturePreprocessor:
             raise ValueError("Preprocessor must be fitted before transform")
 
         logger.debug(f"Transforming {len(X)} samples")
-
-        # Keep identifier columns
-        id_columns = [col for col in X.columns if col.endswith('_id')]
-        identifiers = X[id_columns].copy() if id_columns else pd.DataFrame()
 
         # Transform numerical features
         numerical_features = X[self.feature_columns]
@@ -98,9 +96,12 @@ class FeaturePreprocessor:
             index=X.index
         )
 
-        # Add back identifiers
-        if not identifiers.empty:
-            X_transformed = pd.concat([identifiers.reset_index(drop=True), X_transformed.reset_index(drop=True)], axis=1)
+        # Optionally add back identifiers (for evaluation purposes only)
+        if keep_identifiers:
+            id_columns = [col for col in X.columns if col.endswith('_id') or col == 'race_date']
+            if id_columns:
+                identifiers = X[id_columns].copy()
+                X_transformed = pd.concat([identifiers.reset_index(drop=True), X_transformed.reset_index(drop=True)], axis=1)
 
         return X_transformed
 

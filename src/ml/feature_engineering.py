@@ -86,13 +86,29 @@ class FeatureExtractor:
             logger.warning(f"No entries found for race_id={race_id}")
             return pd.DataFrame()
 
-        # Extract features for each entry
+        # Extract features for each entry with odds-based features
         features_list = []
+        entries_with_odds = []
+
         for entry in entries:
             features = self._extract_entry_features(entry, race)
-            features_list.append(features)
 
-        df = pd.DataFrame(features_list)
+            # For prediction, use morning_odds as proxy for final_odds
+            odds = entry.morning_odds if entry.morning_odds else 0.0
+            features['final_odds'] = float(odds)
+
+            features_list.append(features)
+            entries_with_odds.append({
+                'features': features,
+                'odds': odds or 999.0  # High value for missing
+            })
+
+        # Calculate odds_rank within race (1 = lowest odds = most favored)
+        sorted_entries = sorted(entries_with_odds, key=lambda x: x['odds'])
+        for rank, entry_data in enumerate(sorted_entries, 1):
+            entry_data['features']['odds_rank'] = float(rank)
+
+        df = pd.DataFrame([e['features'] for e in entries_with_odds])
         logger.info(f"Extracted {len(df)} feature rows with {len(df.columns)} columns")
 
         return df
@@ -139,6 +155,8 @@ class FeatureExtractor:
                     joinedload(RaceEntry.result)
                 ).filter_by(race_id=race.id).all()
 
+                # Collect race-level data for odds ranking
+                race_entries_with_odds = []
                 for entry in entries:
                     # Skip if no result
                     if not entry.result:
@@ -151,12 +169,31 @@ class FeatureExtractor:
                         entry, race, as_of_date=as_of_datetime
                     )
 
+                    # Add final_odds from race result
+                    final_odds = entry.result.final_odds
+                    features['final_odds'] = float(final_odds) if final_odds else 0.0
+
                     # Label is finish position
                     label = entry.result.finish_position
 
                     if features and label:
-                        all_features.append(features)
-                        all_labels.append(label)
+                        race_entries_with_odds.append({
+                            'features': features,
+                            'label': label,
+                            'final_odds': final_odds or 999.0  # Use high value for missing odds
+                        })
+
+                # Calculate odds_rank within race (1 = lowest odds = most favored)
+                if race_entries_with_odds:
+                    # Sort by odds to determine rank
+                    sorted_entries = sorted(race_entries_with_odds, key=lambda x: x['final_odds'])
+                    for rank, entry_data in enumerate(sorted_entries, 1):
+                        entry_data['features']['odds_rank'] = float(rank)
+
+                    # Add to all features
+                    for entry_data in race_entries_with_odds:
+                        all_features.append(entry_data['features'])
+                        all_labels.append(entry_data['label'])
 
             except Exception as e:
                 logger.error(f"Error extracting features for race {race.id}: {e}")
@@ -409,6 +446,8 @@ class FeatureExtractor:
         - Average finish position in last N races
         - Best finish in last N races
         - Days since last race
+        - Last race position
+        - Average odds in recent races
         """
         features = {}
 
@@ -424,16 +463,27 @@ class FeatureExtractor:
             features['recent_avg_position'] = 0.0
             features['recent_best_position'] = 0
             features['days_since_last_race'] = 999
+            features['last_race_position'] = 0
+            features['recent_avg_odds'] = 0.0
             return features
 
         positions = [e.result.finish_position for e in past_entries if e.result and e.result.finish_position is not None]
+        odds = [e.result.final_odds for e in past_entries if e.result and e.result.final_odds is not None]
 
         if positions:
             features['recent_avg_position'] = np.mean(positions)
             features['recent_best_position'] = min(positions)
+            features['last_race_position'] = positions[0]  # Most recent race
         else:
             features['recent_avg_position'] = 0.0
             features['recent_best_position'] = 0
+            features['last_race_position'] = 0
+
+        # Average odds in recent races (market sentiment)
+        if odds:
+            features['recent_avg_odds'] = np.mean(odds)
+        else:
+            features['recent_avg_odds'] = 0.0
 
         # Days since last race
         last_race_date = past_entries[0].race.race_date

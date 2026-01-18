@@ -3,209 +3,188 @@
 {% block title %}ホーム - JRA競馬予想アプリ{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="row mb-5">
-    <div class="col-12">
-        <div class="d-flex align-items-center gap-3 mb-3">
-            <div style="width: 48px; height: 48px; background-color: var(--accent-light); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-trophy" style="font-size: 24px; color: var(--accent);"></i>
+<!-- Premium Bento Grid Layout -->
+<div class="bento-grid">
+    <!-- Hero Section -->
+    <div class="bento-card bento-hero fade-in-up">
+        <div class="bento-hero-content">
+            <h1 class="text-gradient">JRA競馬予想
+                <span>Machine Learning Prediction System</span>
+            </h1>
+            <p>過去10年以上のレースデータを機械学習で分析。高精度な予測モデルによる科学的アプローチで勝利への道筋を示します。</p>
+            <div class="d-flex gap-3 mt-4">
+                <a href="{{ url_for('predictions.predictions_index') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-lightning-charge-fill"></i> 予想を見る
+                </a>
+                <a href="{{ url_for('main.race_list') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-calendar3"></i> レース一覧
+                </a>
             </div>
-            <div>
-                <h1 class="mb-1">JRA競馬予想</h1>
-                <p class="mb-0" style="color: var(--text-secondary);">機械学習による高精度な競馬予想システム</p>
-            </div>
+        </div>
+        <div class="bento-hero-visual">
+            <i class="bi bi-trophy-fill"></i>
         </div>
     </div>
-</div>
 
-<!-- Stats Overview -->
-<div class="row mb-5">
-    <div class="col-md-3 mb-3">
-        <div class="card card-stat">
-            <div class="card-stat-label">今週のレース</div>
-            <div class="card-stat-value text-mono">{{ upcoming_races|length if upcoming_races else 0 }}</div>
-        </div>
+    <!-- Stats Row - 4 cards -->
+    <div class="bento-card bento-stat fade-in-up stagger-1">
+        <span class="stat-label"><i class="bi bi-calendar-event"></i> 今週のレース</span>
+        <span class="stat-value text-mono">{{ upcoming_races|length if upcoming_races else 0 }}</span>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card card-stat">
-            <div class="card-stat-label">直近の結果</div>
-            <div class="card-stat-value text-mono">{{ recent_races|length if recent_races else 0 }}</div>
-        </div>
+    <div class="bento-card bento-stat fade-in-up stagger-2">
+        <span class="stat-label"><i class="bi bi-flag-fill"></i> 直近の結果</span>
+        <span class="stat-value text-mono">{{ recent_races|length if recent_races else 0 }}</span>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card card-stat">
-            <div class="card-stat-label">予測精度</div>
-            <div class="card-stat-value text-mono">85<span style="font-size: 16px; color: var(--text-muted);">%</span></div>
-        </div>
+    <div class="bento-card bento-stat fade-in-up stagger-3">
+        <span class="stat-label"><i class="bi bi-bullseye"></i> 予測精度</span>
+        <span class="stat-value text-mono">85<span class="stat-unit">%</span></span>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card card-stat">
-            <div class="card-stat-label">回収率</div>
-            <div class="card-stat-value text-mono">92<span style="font-size: 16px; color: var(--text-muted);">%</span></div>
-        </div>
+    <div class="bento-card bento-stat fade-in-up stagger-4">
+        <span class="stat-label"><i class="bi bi-currency-yen"></i> 回収率</span>
+        <span class="stat-value text-mono">92<span class="stat-unit">%</span></span>
     </div>
-</div>
 
-<div class="row">
-    <!-- Upcoming Races -->
-    <div class="col-lg-8 mb-4">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <h3 style="margin: 0;">今週のレース</h3>
+    <!-- Main Content - Upcoming Races -->
+    <div class="bento-card bento-main fade-in-up">
+        <div class="section-header">
+            <h3><i class="bi bi-calendar-week text-accent"></i> 今週のレース</h3>
             <a href="{{ url_for('main.race_list') }}" class="btn btn-outline-primary btn-sm">
-                すべて表示
+                すべて表示 <i class="bi bi-arrow-right"></i>
             </a>
         </div>
 
         {% if upcoming_races %}
-            <div class="card">
-                <div class="list-group list-group-flush">
-                    {% for race in upcoming_races %}
-                        <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
-                           class="list-group-item list-group-item-action border-0">
-                            <div class="d-flex align-items-start justify-content-between mb-2">
-                                <div>
-                                    <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
-                                        {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
-                                        {% if race.race_name %}
-                                            <span style="color: var(--text-secondary); font-weight: 500;">{{ race.race_name }}</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-secondary">{{ race.surface }}</span>
-                                        <span class="badge bg-info text-mono">{{ race.distance }}m</span>
-                                        {% if race.race_class %}
-                                            <span class="badge bg-warning">{{ race.race_class }}</span>
-                                        {% endif %}
-                                    </div>
+            <div class="list-group">
+                {% for race in upcoming_races %}
+                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
+                       class="list-group-item list-group-item-action">
+                        <div class="race-item">
+                            <div class="race-item-number">{{ race.race_number }}R</div>
+                            <div class="race-item-content">
+                                <div class="race-item-title">
+                                    {{ race.track.name if race.track else '競馬場' }}
+                                    {% if race.race_name %}
+                                        <span style="color: var(--text-secondary); font-weight: 400;">{{ race.race_name }}</span>
+                                    {% endif %}
                                 </div>
-                                <span class="text-mono" style="color: var(--text-muted); font-size: 13px; white-space: nowrap;">
-                                    {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
-                                </span>
+                                <div class="race-item-meta">
+                                    <span class="badge bg-secondary">{{ race.surface }}</span>
+                                    <span class="badge bg-info text-mono">{{ race.distance }}m</span>
+                                    {% if race.race_class %}
+                                        <span class="badge bg-warning">{{ race.race_class }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                        </a>
-                    {% endfor %}
-                </div>
+                            <div class="race-item-date">
+                                {{ race.race_date.strftime('%m/%d') if race.race_date else 'TBD' }}
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
             </div>
         {% else %}
             <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> 現在、今週のレース情報はありません。
+                <i class="bi bi-info-circle-fill"></i>
+                <span>現在、今週のレース情報はありません。</span>
             </div>
         {% endif %}
     </div>
 
     <!-- Sidebar -->
-    <div class="col-lg-4">
-        <!-- Recent Results -->
-        <div class="mb-4">
-            <h3 class="mb-3">最近の結果</h3>
-            <div class="card">
-                <div class="card-body" style="padding: var(--space-4);">
-                    {% if recent_races %}
-                        <ul class="list-unstyled mb-0">
-                            {% for race in recent_races %}
-                                <li style="padding: var(--space-3) 0; border-bottom: 0.5px solid var(--border);">
-                                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}"
-                                       style="text-decoration: none; color: inherit; display: block;">
-                                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;" class="text-mono">
-                                            {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
-                                        </div>
-                                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">
-                                            {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
-                                        </div>
-                                    </a>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p style="color: var(--text-muted); font-size: 13px; margin: 0;">
-                            最近の結果はありません
-                        </p>
-                    {% endif %}
-                </div>
+    <div class="bento-card bento-sidebar fade-in-up">
+        <h3 style="font-size: 20px; margin-bottom: var(--space-5);"><i class="bi bi-clock-history text-accent"></i> 最近の結果</h3>
+        {% if recent_races %}
+            <div class="d-flex flex-column">
+                {% for race in recent_races %}
+                    <a href="{{ url_for('main.race_detail', race_id=race.id) }}" class="result-item">
+                        <div class="result-item-date">
+                            {{ race.race_date.strftime('%Y/%m/%d') if race.race_date else 'TBD' }}
+                        </div>
+                        <div class="result-item-name">
+                            {{ race.track.name if race.track else '競馬場' }} {{ race.race_number }}R
+                            {% if race.race_name %}<span style="color: var(--text-muted);"> - {{ race.race_name }}</span>{% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
             </div>
-        </div>
+        {% else %}
+            <p style="color: var(--text-muted); font-size: 14px; margin: 0;">
+                最近の結果はありません
+            </p>
+        {% endif %}
 
         <!-- Quick Links -->
-        <div>
-            <h3 class="mb-3">クイックリンク</h3>
-            <div class="d-flex flex-column gap-2">
-                <a href="{{ url_for('predictions.predictions_index') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between">
-                    <span><i class="bi bi-graph-up"></i> 予想を見る</span>
-                    <i class="bi bi-arrow-right"></i>
+        <div class="sidebar-section">
+            <div class="sidebar-title">クイックリンク</div>
+            <div class="quick-links">
+                <a href="{{ url_for('predictions.predictions_index') }}" class="quick-link">
+                    <div class="quick-link-content">
+                        <i class="bi bi-lightning-charge-fill text-accent"></i>
+                        <span>予想を見る</span>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
                 </a>
-                <a href="{{ url_for('entities.horse_list') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between">
-                    <span><i class="bi bi-award"></i> 馬データ</span>
-                    <i class="bi bi-arrow-right"></i>
+                <a href="{{ url_for('entities.horse_list') }}" class="quick-link">
+                    <div class="quick-link-content">
+                        <i class="bi bi-trophy text-accent"></i>
+                        <span>馬データ</span>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
                 </a>
-                <a href="{{ url_for('entities.jockey_list') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between">
-                    <span><i class="bi bi-person-badge"></i> 騎手データ</span>
-                    <i class="bi bi-arrow-right"></i>
+                <a href="{{ url_for('entities.jockey_list') }}" class="quick-link">
+                    <div class="quick-link-content">
+                        <i class="bi bi-person-fill text-accent"></i>
+                        <span>騎手データ</span>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
                 </a>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Charts Section -->
-<div class="row mt-5 pt-5" style="border-top: 1px solid var(--border);">
-    <div class="col-12 mb-4">
-        <h3>統計情報</h3>
-    </div>
-    <div class="col-lg-8 mb-4">
-        <div class="card chart-card">
-            <div class="chart-title">週別レース数推移</div>
-            <div class="chart-container">
-                <canvas id="weeklyRacesChart"></canvas>
-            </div>
+    <!-- Charts Section -->
+    <div class="bento-card bento-chart-wide fade-in-up">
+        <div class="chart-title"><i class="bi bi-graph-up"></i> 週別レース数推移</div>
+        <div class="chart-container">
+            <canvas id="weeklyRacesChart"></canvas>
         </div>
     </div>
-    <div class="col-lg-4 mb-4">
-        <div class="card chart-card">
-            <div class="chart-title">競馬場別レース数</div>
-            <div class="chart-container">
-                <canvas id="trackDistributionChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Features Section -->
-<div class="row mt-5 pt-5" style="border-top: 1px solid var(--border);">
-    <div class="col-12 mb-4">
-        <h3>主な機能</h3>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <div style="width: 40px; height: 40px; background-color: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-                    <i class="bi bi-cpu" style="font-size: 20px; color: var(--accent);"></i>
-                </div>
-                <h4 style="font-size: 16px; margin-bottom: var(--space-2);">機械学習予想</h4>
-                <p class="card-text">過去のデータから学習した高精度な予想モデルを使用</p>
-            </div>
+    <div class="bento-card bento-square fade-in-up">
+        <div class="chart-title"><i class="bi bi-pie-chart-fill"></i> 競馬場別レース数</div>
+        <div class="chart-container">
+            <canvas id="trackDistributionChart"></canvas>
         </div>
     </div>
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <div style="width: 40px; height: 40px; background-color: var(--success-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-                    <i class="bi bi-clock-history" style="font-size: 20px; color: var(--success);"></i>
-                </div>
-                <h4 style="font-size: 16px; margin-bottom: var(--space-2);">リアルタイム更新</h4>
-                <p class="card-text">最新のレース情報とオッズを自動的に更新</p>
-            </div>
+
+    <!-- Feature Cards -->
+    <div class="bento-card bento-feature fade-in-up stagger-1">
+        <div class="feature-icon" style="background: var(--accent-light);">
+            <i class="bi bi-cpu-fill" style="color: var(--accent);"></i>
         </div>
+        <h4>機械学習予想</h4>
+        <p>XGBoost/Random Forestモデルによる高精度な予測。40以上の特徴量を分析。</p>
     </div>
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <div style="width: 40px; height: 40px; background-color: var(--warning-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-                    <i class="bi bi-bar-chart" style="font-size: 20px; color: var(--warning);"></i>
-                </div>
-                <h4 style="font-size: 16px; margin-bottom: var(--space-2);">詳細な分析</h4>
-                <p class="card-text">馬・騎手・調教師の詳細なデータ分析と統計情報</p>
-            </div>
+    <div class="bento-card bento-feature fade-in-up stagger-2">
+        <div class="feature-icon" style="background: var(--success-light);">
+            <i class="bi bi-arrow-repeat" style="color: var(--success);"></i>
         </div>
+        <h4>リアルタイム更新</h4>
+        <p>netkeiba.comから最新のレース情報とオッズを自動取得・更新。</p>
+    </div>
+    <div class="bento-card bento-feature fade-in-up stagger-3">
+        <div class="feature-icon" style="background: var(--info-light);">
+            <i class="bi bi-bar-chart-fill" style="color: var(--info);"></i>
+        </div>
+        <h4>詳細な分析</h4>
+        <p>馬・騎手・調教師の過去成績、コース適性など多角的なデータ分析。</p>
+    </div>
+    <div class="bento-card bento-feature fade-in-up stagger-4">
+        <div class="feature-icon" style="background: var(--warning-light);">
+            <i class="bi bi-cash-coin" style="color: var(--warning);"></i>
+        </div>
+        <h4>馬券シミュレーション</h4>
+        <p>単勝・複勝・馬連など7券種に対応した購入シミュレーション機能。</p>
     </div>
 </div>
 {% endblock %}

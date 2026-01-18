@@ -90,6 +90,7 @@ def register_blueprints(app):
     from src.web.routes.search import search_bp
     from src.web.routes.api import api_bp
     from src.web.routes.simulation import simulation_bp
+    from src.web.routes.scraping import scraping_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(predictions_bp)
@@ -97,6 +98,11 @@ def register_blueprints(app):
     app.register_blueprint(search_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(simulation_bp)
+    app.register_blueprint(scraping_bp)
+
+    # CSRF exemption for API endpoints (they use JSON)
+    csrf.exempt(scraping_bp)
+    csrf.exempt(predictions_bp)
 
     logger.info("Blueprints registered")
 
