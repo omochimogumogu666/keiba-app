@@ -36,12 +36,12 @@
         <span class="stat-value text-mono">{{ recent_races|length if recent_races else 0 }}</span>
     </div>
     <div class="bento-card bento-stat fade-in-up stagger-3">
-        <span class="stat-label"><i class="bi bi-bullseye"></i> 予測精度</span>
-        <span class="stat-value text-mono">85<span class="stat-unit">%</span></span>
+        <span class="stat-label"><i class="bi bi-bullseye"></i> 予測精度（1着）</span>
+        <span class="stat-value text-mono">{{ '{:.1f}'.format((prediction_accuracy or 0) * 100) }}<span class="stat-unit">%</span></span>
     </div>
     <div class="bento-card bento-stat fade-in-up stagger-4">
         <span class="stat-label"><i class="bi bi-currency-yen"></i> 回収率</span>
-        <span class="stat-value text-mono">92<span class="stat-unit">%</span></span>
+        <span class="stat-value text-mono {% if (recovery_rate or 0) >= 100 %}text-success{% elif (recovery_rate or 0) < 80 %}text-danger{% endif %}">{{ '{:.1f}'.format(recovery_rate or 0) }}<span class="stat-unit">%</span></span>
     </div>
 
     <!-- Main Content - Upcoming Races -->

@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}予測分析 - JRA競馬予想アプリ{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6 text-gold mb-1">
+                        <i class="bi bi-graph-up-arrow"></i> 予測分析
+                    </h1>
+                    <p class="text-muted mb-0">モデルパフォーマンスと予測精度の詳細分析</p>
+                </div>
+                <div>
+                    <span class="badge bg-secondary">
+                        <i class="bi bi-calendar3"></i>
+                        過去30日間のデータ
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-warning" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        データの読み込み中にエラーが発生しました: {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Overall Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="bento-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-2">
+                        <i class="bi bi-bullseye text-gold"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">1着的中率</h6>
+                    <div class="stat-value text-mono">
+                        {{ '{:.1f}'.format((overall_stats.win_accuracy or 0) * 100) }}<span class="stat-unit">%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="bento-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-2">
+                        <i class="bi bi-trophy text-emerald"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">3着内的中率</h6>
+                    <div class="stat-value text-mono">
+                        {{ '{:.1f}'.format((overall_stats.top3_accuracy or 0) * 100) }}<span class="stat-unit">%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="bento-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-2">
+                        <i class="bi bi-cash-coin {% if (overall_stats.roi or 0) >= 100 %}text-success{% else %}text-danger{% endif %}"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">回収率 (単勝)</h6>
+                    <div class="stat-value text-mono {% if (overall_stats.roi or 0) >= 100 %}text-success{% else %}text-danger{% endif %}">
+                        {{ '{:.1f}'.format(overall_stats.roi or 0) }}<span class="stat-unit">%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="bento-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-icon mb-2">
+                        <i class="bi bi-bar-chart-line text-info"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">総予測数</h6>
+                    <div class="stat-value text-mono">
+                        {{ overall_stats.total_predictions or 0 }}<span class="stat-unit">件</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <!-- Daily Performance Chart -->
+        <div class="col-lg-8">
+            <div class="bento-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-graph-up"></i> 日別精度推移
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyPerformanceChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Track Accuracy Chart -->
+        <div class="col-lg-4">
+            <div class="bento-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-geo-alt"></i> 競馬場別精度
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trackAccuracyChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Comparison Table -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="bento-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-diagram-3"></i> モデル別パフォーマンス比較
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if model_comparison %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>モデル名</th>
+                                    <th class="text-end">予測数</th>
+                                    <th class="text-end">1着的中率</th>
+                                    <th class="text-end">3着内的中率</th>
+                                    <th class="text-end">回収率</th>
+                                    <th class="text-end">平均誤差</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for model in model_comparison %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary">{{ model.model_name }}</span>
+                                    </td>
+                                    <td class="text-end text-mono">{{ model.total_predictions }}</td>
+                                    <td class="text-end text-mono">{{ '{:.1f}'.format(model.win_accuracy * 100) }}%</td>
+                                    <td class="text-end text-mono">{{ '{:.1f}'.format(model.top3_accuracy * 100) }}%</td>
+                                    <td class="text-end text-mono {% if model.roi >= 100 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ '{:.1f}'.format(model.roi) }}%
+                                    </td>
+                                    <td class="text-end text-mono">{{ '{:.2f}'.format(model.avg_position_error) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-2">モデル比較データがありません</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Track Accuracy Detail Table -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="bento-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-building"></i> 競馬場別詳細
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if track_accuracy %}
+                    <div class="row">
+                        {% for track_name, stats in track_accuracy.items() %}
+                        <div class="col-md-4 col-lg-2 mb-3">
+                            <div class="card bg-dark border-secondary h-100">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-gold mb-2">{{ track_name }}</h6>
+                                    <div class="d-flex justify-content-around">
+                                        <div>
+                                            <small class="text-muted d-block">1着</small>
+                                            <span class="text-mono">{{ '{:.0f}'.format(stats.win_accuracy * 100) }}%</span>
+                                        </div>
+                                        <div>
+                                            <small class="text-muted d-block">3着内</small>
+                                            <span class="text-mono">{{ '{:.0f}'.format(stats.top3_accuracy * 100) }}%</span>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted mt-1 d-block">{{ stats.total_predictions }}件</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-2">競馬場別データがありません</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Performance Chart
+    const dailyData = {{ daily_performance | tojson | safe }};
+
+    if (dailyData && dailyData.length > 0) {
+        const ctx = document.getElementById('dailyPerformanceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dailyData.map(d => d.date),
+                datasets: [
+                    {
+                        label: '1着的中率',
+                        data: dailyData.map(d => d.win_accuracy * 100),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: '3着内的中率',
+                        data: dailyData.map(d => d.top3_accuracy * 100),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#9ca3af' }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: {
+                            color: '#9ca3af',
+                            callback: function(value) { return value + '%'; }
+                        },
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+
+    // Track Accuracy Chart
+    const trackData = {{ track_accuracy | tojson | safe }};
+
+    if (trackData && Object.keys(trackData).length > 0) {
+        const ctx2 = document.getElementById('trackAccuracyChart').getContext('2d');
+        const trackNames = Object.keys(trackData);
+        const winAccuracies = trackNames.map(t => trackData[t].win_accuracy * 100);
+
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: trackNames,
+                datasets: [{
+                    label: '1着的中率',
+                    data: winAccuracies,
+                    backgroundColor: winAccuracies.map(v => v >= 10 ? '#10b981' : '#ef4444'),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: {
+                            color: '#9ca3af',
+                            callback: function(value) { return value + '%'; }
+                        },
+                        max: 30
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#9ca3af' }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

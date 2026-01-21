@@ -211,6 +211,47 @@ class Prediction(db.Model):
         return f'<Prediction race={self.race_id} horse={self.horse_id} pos={self.predicted_position}>'
 
 
+class ModelPerformance(db.Model):
+    """
+    Model performance tracking for prediction accuracy analysis.
+
+    予測精度の追跡・分析用テーブル。
+    各レースの予測と実績を比較し、モデルのパフォーマンスを記録。
+    """
+    __tablename__ = 'model_performance'
+
+    id = db.Column(db.Integer, primary_key=True)
+    model_name = db.Column(db.String(50), nullable=False, index=True)
+    model_version = db.Column(db.String(50))
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False, index=True)
+    horse_id = db.Column(db.Integer, db.ForeignKey('horses.id'), nullable=False)
+    race_date = db.Column(db.Date, nullable=False, index=True)
+    predicted_position = db.Column(db.Integer)  # 予測着順
+    actual_position = db.Column(db.Integer)  # 実際の着順
+    win_probability = db.Column(db.Float)  # 予測勝率
+    confidence_score = db.Column(db.Float)  # 信頼度スコア
+    actual_odds = db.Column(db.Float)  # 確定オッズ
+    is_correct = db.Column(db.Boolean)  # 的中したか（1着予測が1着になったか）
+    is_top3_correct = db.Column(db.Boolean)  # トップ3予測が3着以内に入ったか
+    position_error = db.Column(db.Integer)  # 予測着順と実際着順の差
+    roi_contribution = db.Column(db.Float)  # ROI貢献度（単勝で計算）
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    race = db.relationship('Race')
+    horse = db.relationship('Horse')
+
+    # Unique constraint: one record per model+race+horse combination
+    __table_args__ = (
+        db.UniqueConstraint('model_name', 'model_version', 'race_id', 'horse_id',
+                           name='uix_model_race_horse'),
+        db.Index('ix_model_performance_model_date', 'model_name', 'race_date'),
+    )
+
+    def __repr__(self):
+        return f'<ModelPerformance {self.model_name} race={self.race_id} pred={self.predicted_position} actual={self.actual_position}>'
+
+
 class SimulationRun(db.Model):
     """Simulation run model for tracking betting simulations."""
     __tablename__ = 'simulation_runs'

@@ -378,12 +378,13 @@
             <div class="card-body" style="padding: 0;">
                 {% if entries %}
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-striped table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th>枠</th>
                                     <th>馬番</th>
                                     <th>馬名</th>
+                                    <th>直近5走</th>
                                     <th>騎手</th>
                                     <th>調教師</th>
                                     <th>斤量</th>
@@ -399,19 +400,85 @@
                                         <td>{{ entry.post_position if entry.post_position else '-' }}</td>
                                         <td>{{ entry.horse_number if entry.horse_number else '-' }}</td>
                                         <td>
-                                            <strong>{{ entry.horse.name if entry.horse else 'Unknown' }}</strong>
-                                            {% if entry.horse and entry.horse.sex %}
-                                                <small class="text-muted">({{ entry.horse.sex }}{{ entry.horse.age if entry.horse.age else '' }})</small>
-                                            {% endif %}
+                                            <div class="d-flex flex-column">
+                                                <a href="{{ url_for('entities.horse_detail', horse_id=entry.horse.id) if entry.horse else '#' }}"
+                                                   class="text-decoration-none fw-bold"
+                                                   data-bs-toggle="popover"
+                                                   data-bs-trigger="hover focus"
+                                                   data-bs-html="true"
+                                                   data-bs-title="{{ entry.horse.name if entry.horse else 'Unknown' }}"
+                                                   {% if entry.horse and horse_stats.get(entry.horse.id) %}
+                                                   data-bs-content="<div class='text-start'>
+                                                       <div class='mb-1'><strong>通算成績:</strong> {{ horse_stats[entry.horse.id].total }}戦 {{ horse_stats[entry.horse.id].wins }}勝</div>
+                                                       <div class='mb-1'><strong>勝率:</strong> {{ horse_stats[entry.horse.id].win_rate }}%</div>
+                                                       <div><strong>複勝率:</strong> {{ horse_stats[entry.horse.id].place_rate }}%</div>
+                                                   </div>"
+                                                   {% endif %}>
+                                                    {{ entry.horse.name if entry.horse else 'Unknown' }}
+                                                </a>
+                                                {% if entry.horse %}
+                                                    <small class="text-muted">
+                                                        {% if entry.horse.sex %}{{ entry.horse.sex }}{% endif %}
+                                                        {% if entry.horse.age %}{{ entry.horse.age }}{% endif %}
+                                                        {% if horse_stats.get(entry.horse.id) %}
+                                                            <span class="ms-1 badge bg-secondary" style="font-size: 10px;">
+                                                                {{ horse_stats[entry.horse.id].total }}戦{{ horse_stats[entry.horse.id].wins }}勝
+                                                            </span>
+                                                        {% endif %}
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </td>
-                                        <td>{{ entry.jockey.name if entry.jockey else '-' }}</td>
-                                        <td><small>{{ entry.trainer.name if entry.trainer else '-' }}</small></td>
-                                        <td>{{ entry.weight if entry.weight else '-' }}kg</td>
                                         <td>
+                                            <!-- 直近5走の着順を可視化 -->
+                                            <div class="d-flex gap-1">
+                                                {% if entry.horse and horse_recent_races.get(entry.horse.id) %}
+                                                    {% for recent in horse_recent_races[entry.horse.id] %}
+                                                        <span class="badge rounded-circle d-flex align-items-center justify-content-center"
+                                                              style="width: 24px; height: 24px; font-size: 11px;
+                                                                     background-color: {{ '#ffc107' if recent.position == 1 else '#6c757d' if recent.position == 2 else '#cd7f32' if recent.position == 3 else '#3d3d3d' if recent.position else '#1a1a1a' }};
+                                                                     color: {{ '#000' if recent.position and recent.position <= 3 else '#fff' }};"
+                                                              title="{{ recent.date }} {{ recent.race_name }}"
+                                                              data-bs-toggle="tooltip">
+                                                            {{ recent.position if recent.position else '-' }}
+                                                        </span>
+                                                    {% endfor %}
+                                                    {% for _ in range(5 - horse_recent_races[entry.horse.id]|length) %}
+                                                        <span class="badge rounded-circle d-flex align-items-center justify-content-center"
+                                                              style="width: 24px; height: 24px; font-size: 11px; background-color: #1a1a1a; color: #666;">
+                                                            -
+                                                        </span>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <small class="text-muted">-</small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex flex-column">
+                                                <a href="{{ url_for('entities.jockey_detail', jockey_id=entry.jockey.id) if entry.jockey else '#' }}"
+                                                   class="text-decoration-none">
+                                                    {{ entry.jockey.name if entry.jockey else '-' }}
+                                                </a>
+                                                {% if entry.jockey and jockey_stats.get(entry.jockey.id) %}
+                                                    <div class="d-flex align-items-center gap-1" style="font-size: 10px;">
+                                                        <span class="text-muted">勝</span>
+                                                        <div class="progress" style="width: 40px; height: 4px;">
+                                                            <div class="progress-bar bg-warning" style="width: {{ jockey_stats[entry.jockey.id].win_rate }}%;"></div>
+                                                        </div>
+                                                        <span class="text-mono">{{ jockey_stats[entry.jockey.id].win_rate }}%</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td><small>{{ entry.trainer.name if entry.trainer else '-' }}</small></td>
+                                        <td class="text-mono">{{ entry.weight if entry.weight else '-' }}kg</td>
+                                        <td class="text-mono">
                                             {% if entry.horse_weight %}
                                                 {{ entry.horse_weight }}kg
                                                 {% if entry.horse_weight_change %}
-                                                    <span class="text-{{ 'success' if entry.horse_weight_change > 0 else 'danger' if entry.horse_weight_change < 0 else 'muted' }}">
+                                                    <span class="text-{{ 'success' if entry.horse_weight_change > 0 else 'danger' if entry.horse_weight_change < 0 else 'muted' }}"
+                                                          style="font-size: 11px;">
                                                         ({{ '+' if entry.horse_weight_change > 0 else '' }}{{ entry.horse_weight_change }})
                                                     </span>
                                                 {% endif %}
@@ -420,7 +487,7 @@
                                             {% endif %}
                                         </td>
                                         {% if race.status == 'upcoming' %}
-                                            <td>{{ entry.morning_odds if entry.morning_odds else '-' }}</td>
+                                            <td class="text-mono">{{ entry.morning_odds if entry.morning_odds else '-' }}</td>
                                         {% endif %}
                                     </tr>
                                 {% endfor %}
@@ -455,4 +522,25 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Bootstrap Popovers を有効化
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function(popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl, {
+            container: 'body',
+            placement: 'top'
+        });
+    });
+
+    // Bootstrap Tooltips を有効化
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

@@ -133,4 +133,217 @@
         </div>
     </div>
 </div>
+
+<!-- Performance Charts -->
+<div class="row mt-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-graph-up-arrow"></i> 着順推移（直近15走）
+            </div>
+            <div class="card-body">
+                {% if position_chart_labels and position_chart_data %}
+                    <canvas id="positionTrendChart" style="max-height: 300px;"></canvas>
+                {% else %}
+                    <p class="text-muted mb-0">データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-rulers"></i> 距離別勝率
+            </div>
+            <div class="card-body">
+                {% if distance_labels and distance_win_rates %}
+                    <canvas id="distanceStatsChart" style="max-height: 300px;"></canvas>
+                {% else %}
+                    <p class="text-muted mb-0">データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-cloud-sun"></i> 馬場状態別成績
+            </div>
+            <div class="card-body">
+                {% if condition_labels and condition_win_rates %}
+                    <canvas id="trackConditionChart" style="max-height: 300px;"></canvas>
+                {% else %}
+                    <p class="text-muted mb-0">データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 着順推移チャート
+    const positionLabels = {{ position_chart_labels | tojson | safe }};
+    const positionData = {{ position_chart_data | tojson | safe }};
+
+    if (positionLabels && positionLabels.length > 0) {
+        const ctx1 = document.getElementById('positionTrendChart');
+        if (ctx1) {
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: positionLabels,
+                    datasets: [{
+                        label: '着順',
+                        data: positionData,
+                        borderColor: 'rgb(255, 193, 7)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            reverse: true,
+                            beginAtZero: false,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value + '着';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + '着';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // 距離別勝率チャート
+    const distanceLabels = {{ distance_labels | tojson | safe }};
+    const distanceWinRates = {{ distance_win_rates | tojson | safe }};
+
+    if (distanceLabels && distanceLabels.length > 0) {
+        const ctx2 = document.getElementById('distanceStatsChart');
+        if (ctx2) {
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: distanceLabels,
+                    datasets: [{
+                        label: '勝率',
+                        data: distanceWinRates,
+                        backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                        borderColor: 'rgb(13, 110, 253)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '勝率: ' + context.parsed.y + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // 馬場状態別成績チャート
+    const conditionLabels = {{ condition_labels | tojson | safe }};
+    const conditionWinRates = {{ condition_win_rates | tojson | safe }};
+    const conditionPlaceRates = {{ condition_place_rates | tojson | safe }};
+
+    if (conditionLabels && conditionLabels.length > 0) {
+        const ctx3 = document.getElementById('trackConditionChart');
+        if (ctx3) {
+            new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: conditionLabels,
+                    datasets: [
+                        {
+                            label: '勝率',
+                            data: conditionWinRates,
+                            backgroundColor: 'rgba(255, 193, 7, 0.7)',
+                            borderColor: 'rgb(255, 193, 7)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '複勝率',
+                            data: conditionPlaceRates,
+                            backgroundColor: 'rgba(13, 202, 240, 0.7)',
+                            borderColor: 'rgb(13, 202, 240)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+</script>
 {% endblock %}

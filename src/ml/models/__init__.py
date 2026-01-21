@@ -12,9 +12,19 @@ except ImportError:
     XGBoostRaceModel = None
     XGBOOST_AVAILABLE = False
 
+# PyTorch Neural Network is optional
+try:
+    from src.ml.models.neural_network import NeuralNetworkRaceModel
+    TORCH_AVAILABLE = True
+except ImportError:
+    NeuralNetworkRaceModel = None
+    TORCH_AVAILABLE = False
+
 __all__ = [
     'BaseRaceModel',
     'RandomForestRaceModel',
     'XGBoostRaceModel',
-    'XGBOOST_AVAILABLE'
+    'XGBOOST_AVAILABLE',
+    'NeuralNetworkRaceModel',
+    'TORCH_AVAILABLE'
 ]

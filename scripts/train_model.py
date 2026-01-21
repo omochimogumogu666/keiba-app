@@ -26,6 +26,9 @@ from src.ml.preprocessing import (
 )
 from src.ml.models.random_forest import RandomForestRaceModel
 from src.ml.models.xgboost_model import XGBoostRaceModel
+from src.ml.models import TORCH_AVAILABLE
+if TORCH_AVAILABLE:
+    from src.ml.models.neural_network import NeuralNetworkRaceModel
 from src.ml.evaluation import (
     evaluate_regression_model,
     evaluate_classification_model,
@@ -44,8 +47,8 @@ def parse_args():
         '--model',
         type=str,
         default='random_forest',
-        choices=['random_forest', 'xgboost', 'both'],
-        help='Model type to train'
+        choices=['random_forest', 'xgboost', 'neural_network', 'both', 'all'],
+        help='Model type to train (both=RF+XGB, all=RF+XGB+NN)'
     )
 
     parser.add_argument(
@@ -101,6 +104,28 @@ def parse_args():
         '--no-save',
         action='store_true',
         help='Do not save trained models (evaluation only)'
+    )
+
+    # Neural Network specific parameters
+    parser.add_argument(
+        '--batch-size',
+        type=int,
+        default=64,
+        help='Batch size for neural network training'
+    )
+
+    parser.add_argument(
+        '--n-epochs',
+        type=int,
+        default=100,
+        help='Number of epochs for neural network training'
+    )
+
+    parser.add_argument(
+        '--learning-rate',
+        type=float,
+        default=0.001,
+        help='Learning rate for neural network training'
     )
 
     return parser.parse_args()
@@ -227,24 +252,35 @@ def main():
     # Train models
     models_to_train = []
 
-    if args.model in ['random_forest', 'both']:
-        models_to_train.append(('RandomForest', RandomForestRaceModel))
+    if args.model in ['random_forest', 'both', 'all']:
+        models_to_train.append(('RandomForest', RandomForestRaceModel, {}))
 
-    if args.model in ['xgboost', 'both']:
+    if args.model in ['xgboost', 'both', 'all']:
         try:
-            models_to_train.append(('XGBoost', XGBoostRaceModel))
+            models_to_train.append(('XGBoost', XGBoostRaceModel, {}))
         except ImportError:
             logger.warning("XGBoost not available, skipping")
 
+    if args.model in ['neural_network', 'all']:
+        if TORCH_AVAILABLE:
+            nn_params = {
+                'batch_size': args.batch_size,
+                'n_epochs': args.n_epochs,
+                'learning_rate': args.learning_rate
+            }
+            models_to_train.append(('NeuralNetwork', NeuralNetworkRaceModel, nn_params))
+        else:
+            logger.warning("PyTorch not available, skipping neural network")
+
     results = {}
 
-    for model_name, ModelClass in models_to_train:
+    for model_name, ModelClass, extra_params in models_to_train:
         print(f"\n{'='*80}")
         print(f"Training {model_name} model")
         print(f"{'='*80}")
 
         # Initialize model
-        model = ModelClass(task=args.task)
+        model = ModelClass(task=args.task, **extra_params)
 
         # Train
         train_metrics = model.train(
@@ -282,9 +318,11 @@ def main():
         if not args.no_save:
             os.makedirs(args.output_dir, exist_ok=True)
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            # Use .pt extension for neural networks, .pkl for others
+            ext = '.pt' if model_name == 'NeuralNetwork' else '.pkl'
             model_path = os.path.join(
                 args.output_dir,
-                f"{model_name.lower()}_{args.task}_{timestamp}.pkl"
+                f"{model_name.lower()}_{args.task}_{timestamp}{ext}"
             )
             model.save(model_path)
             print(f"\nModel saved to: {model_path}")

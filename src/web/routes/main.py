@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from src.data.models import db, Race, Track, RaceResult, RaceEntry, Payout
+from src.data.statistics import calculate_prediction_accuracy
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -67,6 +68,16 @@ def index():
     track_labels = [stat.name for stat in track_stats] if track_stats else []
     track_data = [stat.count for stat in track_stats] if track_stats else []
 
+    # 予測精度・回収率の計算
+    try:
+        prediction_stats = calculate_prediction_accuracy(days=30)
+        prediction_accuracy = prediction_stats.get('win_accuracy', 0)
+        recovery_rate = prediction_stats.get('roi', 0)
+    except Exception as e:
+        logger.warning(f"Could not calculate prediction accuracy: {e}")
+        prediction_accuracy = 0
+        recovery_rate = 0
+
     return render_template(
         'index.html',
         upcoming_races=upcoming_races,
@@ -74,7 +85,9 @@ def index():
         chart_labels=chart_labels,
         chart_data=chart_data,
         track_labels=track_labels,
-        track_data=track_data
+        track_data=track_data,
+        prediction_accuracy=prediction_accuracy,
+        recovery_rate=recovery_rate
     )
 
 
@@ -145,11 +158,73 @@ def race_detail(race_id):
                 payout_groups[payout.bet_type].append(payout)
         payouts = payout_groups
 
+    # 馬・騎手の追加統計情報を取得
+    horse_stats = {}
+    jockey_stats = {}
+    horse_recent_races = {}
+
+    for entry in entries:
+        # 馬の直近5レース成績
+        if entry.horse:
+            recent_results = RaceResult.query.join(RaceEntry).join(Race).filter(
+                RaceEntry.horse_id == entry.horse.id,
+                Race.status == 'completed',
+                Race.id != race.id
+            ).order_by(Race.race_date.desc()).limit(5).all()
+
+            horse_recent_races[entry.horse.id] = [
+                {
+                    'position': r.finish_position,
+                    'race_name': r.race_entry.race.race_name[:10] if r.race_entry.race.race_name else '',
+                    'date': r.race_entry.race.race_date.strftime('%m/%d') if r.race_entry.race.race_date else ''
+                }
+                for r in recent_results
+            ]
+
+            # 馬の通算成績
+            all_results = RaceResult.query.join(RaceEntry).join(Race).filter(
+                RaceEntry.horse_id == entry.horse.id,
+                Race.status == 'completed'
+            ).all()
+
+            total = len(all_results)
+            wins = sum(1 for r in all_results if r.finish_position == 1)
+            places = sum(1 for r in all_results if r.finish_position and r.finish_position <= 3)
+            horse_stats[entry.horse.id] = {
+                'total': total,
+                'wins': wins,
+                'places': places,
+                'win_rate': round(wins / total * 100, 1) if total > 0 else 0,
+                'place_rate': round(places / total * 100, 1) if total > 0 else 0
+            }
+
+        # 騎手の成績
+        if entry.jockey:
+            jockey_results = RaceResult.query.join(RaceEntry).join(Race).filter(
+                RaceEntry.jockey_id == entry.jockey.id,
+                Race.status == 'completed',
+                Race.race_date >= datetime.now().date() - timedelta(days=365)
+            ).all()
+
+            total = len(jockey_results)
+            wins = sum(1 for r in jockey_results if r.finish_position == 1)
+            places = sum(1 for r in jockey_results if r.finish_position and r.finish_position <= 3)
+            jockey_stats[entry.jockey.id] = {
+                'total': total,
+                'wins': wins,
+                'places': places,
+                'win_rate': round(wins / total * 100, 1) if total > 0 else 0,
+                'place_rate': round(places / total * 100, 1) if total > 0 else 0
+            }
+
     return render_template(
         'race_detail.html',
         race=race,
         entries=entries,
-        payouts=payouts
+        payouts=payouts,
+        horse_stats=horse_stats,
+        jockey_stats=jockey_stats,
+        horse_recent_races=horse_recent_races
     )
 
 

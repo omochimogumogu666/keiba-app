@@ -81,12 +81,67 @@ def horse_detail(horse_id):
         'place_rate': place_rate
     }
 
+    # チャート用データ: 着順推移（最新15走）
+    position_chart_data = []
+    position_chart_labels = []
+    for result, entry, race in results[:15]:
+        if result.finish_position:
+            position_chart_labels.insert(0, race.race_date.strftime('%m/%d') if race.race_date else '')
+            position_chart_data.insert(0, result.finish_position)
+
+    # 距離別成績
+    distance_stats = {}
+    for result, entry, race in results:
+        if race.distance:
+            distance_range = f"{(race.distance // 400) * 400}-{((race.distance // 400) + 1) * 400}m"
+            if distance_range not in distance_stats:
+                distance_stats[distance_range] = {'total': 0, 'wins': 0}
+            distance_stats[distance_range]['total'] += 1
+            if result.finish_position == 1:
+                distance_stats[distance_range]['wins'] += 1
+
+    distance_labels = list(distance_stats.keys())
+    distance_win_rates = [
+        round(distance_stats[d]['wins'] / distance_stats[d]['total'] * 100, 1)
+        for d in distance_labels
+    ]
+
+    # 馬場状態別成績
+    track_condition_stats = {}
+    for result, entry, race in results:
+        if race.track_condition:
+            condition = race.track_condition
+            if condition not in track_condition_stats:
+                track_condition_stats[condition] = {'total': 0, 'wins': 0, 'places': 0}
+            track_condition_stats[condition]['total'] += 1
+            if result.finish_position == 1:
+                track_condition_stats[condition]['wins'] += 1
+            if result.finish_position and result.finish_position <= 3:
+                track_condition_stats[condition]['places'] += 1
+
+    condition_labels = list(track_condition_stats.keys())
+    condition_win_rates = [
+        round(track_condition_stats[c]['wins'] / track_condition_stats[c]['total'] * 100, 1)
+        for c in condition_labels
+    ]
+    condition_place_rates = [
+        round(track_condition_stats[c]['places'] / track_condition_stats[c]['total'] * 100, 1)
+        for c in condition_labels
+    ]
+
     return render_template(
         'entities/horse_detail.html',
         horse=horse,
         entries=entries,
         results=results,
-        stats=stats
+        stats=stats,
+        position_chart_labels=position_chart_labels,
+        position_chart_data=position_chart_data,
+        distance_labels=distance_labels,
+        distance_win_rates=distance_win_rates,
+        condition_labels=condition_labels,
+        condition_win_rates=condition_win_rates,
+        condition_place_rates=condition_place_rates
     )
 
 
