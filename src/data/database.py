@@ -4,7 +4,7 @@ Database connection and session management.
 Provides get-or-create functions and save operations for scraped data.
 """
 from contextlib import contextmanager
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Any, Dict, List, Optional, TypeVar
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -665,3 +665,99 @@ def update_race_status_from_results():
         logger.debug("更新が必要なレースはありませんでした")
 
     return updated_count
+
+
+def update_race_status_by_time(buffer_minutes: int = 30):
+    """
+    発走時刻を過ぎたレースのステータスを自動的に'completed'に更新する。
+
+    レースは発走後、約20-30分で終了するため、発走時刻 + buffer_minutes 経過後に
+    completedに更新する。
+
+    Args:
+        buffer_minutes: 発走時刻からの経過分数（デフォルト30分）
+
+    Returns:
+        更新されたレース数
+    """
+    from src.data.models import Race
+
+    now = datetime.now()
+    today = now.date()
+
+    # 本日より前の日付のupcomingレースをすべて更新
+    past_races = Race.query.filter(
+        Race.status == RaceStatus.UPCOMING,
+        Race.race_date < today
+    ).all()
+
+    # 本日のレースで発走時刻 + buffer_minutes を過ぎたものを更新
+    today_races = Race.query.filter(
+        Race.status == RaceStatus.UPCOMING,
+        Race.race_date == today,
+        Race.post_time.isnot(None)
+    ).all()
+
+    updated_count = 0
+
+    # 過去日付のレースを更新
+    for race in past_races:
+        race.status = RaceStatus.COMPLETED
+        logger.info(f"レース {race.netkeiba_race_id} ({race.race_name}) - 日付経過によりcompletedに更新")
+        updated_count += 1
+
+    # 本日のレースで発走時刻を過ぎたものを更新
+    for race in today_races:
+        race_datetime = datetime.combine(race.race_date, race.post_time)
+        cutoff_time = race_datetime + timedelta(minutes=buffer_minutes)
+        if now >= cutoff_time:
+            race.status = RaceStatus.COMPLETED
+            logger.info(f"レース {race.netkeiba_race_id} ({race.race_name}) - 発走時刻経過によりcompletedに更新")
+            updated_count += 1
+
+    if updated_count > 0:
+        db.session.commit()
+        logger.info(f"時間ベースで{updated_count}件のレースステータスを更新しました")
+
+    return updated_count
+
+
+# ステータス更新の最終実行時刻を記録（頻繁な更新を避けるため）
+_last_status_update = None
+_STATUS_UPDATE_INTERVAL = 60  # 秒
+
+
+def auto_update_race_status(force: bool = False) -> int:
+    """
+    レースステータスを自動更新する統合関数。
+
+    時間ベースの更新と結果ベースの更新を両方実行する。
+    短時間での重複実行を避けるため、前回の更新から一定時間経過後のみ実行。
+
+    Args:
+        force: Trueの場合、間隔チェックをスキップして強制実行
+
+    Returns:
+        更新されたレース数の合計
+    """
+    global _last_status_update
+
+    now = datetime.now()
+
+    # 間隔チェック（頻繁なDB更新を避ける）
+    if not force and _last_status_update is not None:
+        elapsed = (now - _last_status_update).total_seconds()
+        if elapsed < _STATUS_UPDATE_INTERVAL:
+            return 0
+
+    _last_status_update = now
+
+    total_updated = 0
+
+    # 時間ベースの更新
+    total_updated += update_race_status_by_time()
+
+    # 結果ベースの更新
+    total_updated += update_race_status_from_results()
+
+    return total_updated

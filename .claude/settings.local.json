@@ -32,7 +32,13 @@
       "Bash(docker system:*)",
       "Bash(docker volume:*)",
       "Bash(docker-compose ps:*)",
-      "Bash(docker-compose build:*)"
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose restart:*)",
+      "Skill(superpowers:systematic-debugging)",
+      "Skill(superpowers:systematic-debugging:*)",
+      "mcp__plugin_claude-mem_mcp-search__search",
+      "mcp__plugin_claude-mem_mcp-search__get_observations",
+      "Bash(python3 -m pytest:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

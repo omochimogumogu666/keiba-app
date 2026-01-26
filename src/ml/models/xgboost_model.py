@@ -128,6 +128,8 @@ class XGBoostRaceModel(BaseRaceModel):
         y_val: Optional[pd.Series] = None,
         early_stopping_rounds: Optional[int] = 10,
         verbose: bool = False,
+        progress_callback: Optional[Any] = None,
+        cancel_check: Optional[Any] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -140,6 +142,8 @@ class XGBoostRaceModel(BaseRaceModel):
             y_val: Validation labels (optional)
             early_stopping_rounds: Rounds for early stopping (None = disabled)
             verbose: Whether to print training progress
+            progress_callback: Progress callback function (optional)
+            cancel_check: Cancel check function (optional)
             **kwargs: Additional training parameters
 
         Returns:
@@ -147,8 +151,19 @@ class XGBoostRaceModel(BaseRaceModel):
         """
         logger.info(f"Training {self.model_name} on {len(X_train)} samples")
 
+        # キャンセルチェック
+        if cancel_check and cancel_check():
+            return {}
+
         # Store feature columns
         self.feature_columns = X_train.columns.tolist()
+
+        # 進捗コールバック（学習開始）
+        if progress_callback:
+            progress_callback({
+                'event': 'training_start',
+                'model_type': 'xgboost'
+            })
 
         # Prepare evaluation set for early stopping
         eval_set = []
@@ -171,6 +186,15 @@ class XGBoostRaceModel(BaseRaceModel):
         self.model.fit(X_train, y_train, **fit_params)
 
         train_time = (datetime.utcnow() - train_start).total_seconds()
+
+        # 進捗コールバック（学習完了）
+        if progress_callback:
+            progress_callback({
+                'event': 'training_complete',
+                'model_type': 'xgboost',
+                'training_time_seconds': train_time,
+                'best_iteration': getattr(self.model, 'best_iteration', None)
+            })
         self.is_trained = True
 
         # Calculate training metrics

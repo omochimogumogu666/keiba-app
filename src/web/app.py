@@ -73,6 +73,9 @@ def create_app(config_name=None):
     # Register error handlers
     register_error_handlers(app)
 
+    # Register before_request hook for auto status update
+    register_status_update_hook(app)
+
     # Create database tables
     with app.app_context():
         db.create_all()
@@ -92,6 +95,7 @@ def register_blueprints(app):
     from src.web.routes.simulation import simulation_bp
     from src.web.routes.scraping import scraping_bp
     from src.web.routes.analysis import analysis_bp
+    from src.web.routes.training import training_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(predictions_bp)
@@ -101,11 +105,13 @@ def register_blueprints(app):
     app.register_blueprint(simulation_bp)
     app.register_blueprint(scraping_bp)
     app.register_blueprint(analysis_bp)
+    app.register_blueprint(training_bp)
 
     # CSRF exemption for API endpoints (they use JSON)
     csrf.exempt(scraping_bp)
     csrf.exempt(predictions_bp)
     csrf.exempt(analysis_bp)
+    csrf.exempt(training_bp)
 
     logger.info("Blueprints registered")
 
@@ -123,6 +129,36 @@ def register_error_handlers(app):
         return render_template('errors/500.html'), 500
 
     logger.info("Error handlers registered")
+
+
+def register_status_update_hook(app):
+    """
+    レースステータス自動更新のbefore_requestフックを登録。
+
+    静的ファイルやAPIエンドポイント以外のページアクセス時に、
+    レースのステータスを自動更新する。60秒間隔で実行。
+    """
+    from flask import request
+    from src.data.database import auto_update_race_status
+
+    @app.before_request
+    def update_race_status():
+        # 静的ファイルへのリクエストはスキップ
+        if request.path.startswith('/static/'):
+            return
+
+        # SSE（Server-Sent Events）エンドポイントはスキップ
+        if '/api/progress/' in request.path:
+            return
+
+        # ステータスを自動更新（60秒間隔チェック内蔵）
+        try:
+            auto_update_race_status()
+        except Exception as e:
+            # ステータス更新の失敗はリクエスト処理を妨げない
+            logger.warning(f"レースステータス自動更新でエラー: {e}")
+
+    logger.info("Race status auto-update hook registered")
 
 
 if __name__ == '__main__':

@@ -18,6 +18,7 @@ from src.ml.feature_engineering import FeatureExtractor
 from src.ml.preprocessing import handle_missing_values
 from src.ml.models.xgboost_model import XGBoostRaceModel
 from src.ml.models.random_forest import RandomForestRaceModel
+from src.ml.stats_cache import get_stats_cache
 from src.utils.logger import get_app_logger
 
 logger = get_app_logger(__name__)
@@ -376,10 +377,33 @@ class PredictionTaskManager:
         race_ids: list,
         model
     ) -> Optional[pd.DataFrame]:
-        """予測を生成"""
+        """
+        予測を生成（Phase 3: バッチモード対応）
+
+        複数レースの特徴量を一括抽出することで、統計取得クエリを最小化。
+        """
         all_predictions = []
         extractor = FeatureExtractor(db.session)
 
+        # キャンセルチェック
+        if self._is_cancelled(task_id):
+            return None
+
+        # Phase 3最適化: バッチモードで全レースの特徴量を一括抽出
+        self._update_progress(task_id, {
+            'phase_text': f'特徴量を一括抽出中 ({len(race_ids)}レース)...',
+            'percent_complete': 45,
+        })
+
+        try:
+            # 一括特徴量抽出（統計クエリを最小化）
+            batch_features = extractor.extract_features_batch(race_ids)
+            logger.info(f"Batch extracted features for {len(batch_features)} races")
+        except Exception as e:
+            logger.error(f"Batch feature extraction failed, falling back to individual mode: {e}")
+            batch_features = None
+
+        # レースごとに予測を生成
         for i, race_id in enumerate(race_ids, 1):
             if self._is_cancelled(task_id):
                 break
@@ -392,11 +416,15 @@ class PredictionTaskManager:
                     'races_processed': i,
                     'current_race': f"{track_name} {race.race_number}R",
                     'phase_text': f'予測を生成中 ({i}/{len(race_ids)})',
-                    'percent_complete': 40 + int(50 * i / len(race_ids)),
+                    'percent_complete': 50 + int(40 * i / len(race_ids)),
                 })
 
-                # 特徴量を抽出
-                X = extractor.extract_features_for_race(race_id)
+                # バッチモードまたはフォールバック
+                if batch_features and race_id in batch_features:
+                    X = batch_features[race_id]
+                else:
+                    # フォールバック: 個別抽出
+                    X = extractor.extract_features_for_race(race_id)
 
                 if X.empty:
                     logger.warning(f"レース {race_id} の特徴量が取得できませんでした")
@@ -448,6 +476,14 @@ class PredictionTaskManager:
 
         if not all_predictions:
             return None
+
+        # L1キャッシュをクリア（メモリ管理）
+        try:
+            stats_cache = get_stats_cache()
+            stats_cache.clear_l1_cache()
+            logger.debug("Statistics L1 cache cleared after prediction batch")
+        except Exception as e:
+            logger.warning(f"Failed to clear stats cache: {e}")
 
         return pd.concat(all_predictions, ignore_index=True)
 

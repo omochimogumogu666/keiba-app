@@ -58,9 +58,27 @@ class TestFeaturePreprocessor:
         assert len(X_transformed) == len(sample_features)
         assert preprocessor.is_fitted
 
-        # Check that ID columns are preserved
+        # ID columns should be excluded in fit_transform (for training)
+        assert 'race_id' not in X_transformed.columns
+        assert 'horse_id' not in X_transformed.columns
+
+        # Feature columns should be present
+        assert 'distance' in X_transformed.columns
+        assert 'horse_weight' in X_transformed.columns
+
+    def test_transform_with_keep_identifiers(self, sample_features):
+        """Test that transform with keep_identifiers preserves ID columns."""
+        preprocessor = FeaturePreprocessor()
+        preprocessor.fit(sample_features)
+        X_transformed = preprocessor.transform(sample_features, keep_identifiers=True)
+
+        # ID columns should be preserved when keep_identifiers=True
         assert 'race_id' in X_transformed.columns
         assert 'horse_id' in X_transformed.columns
+
+        # Feature columns should also be present
+        assert 'distance' in X_transformed.columns
+        assert 'horse_weight' in X_transformed.columns
 
     def test_transform_before_fit_raises_error(self, sample_features):
         """Test that transform raises error before fit."""

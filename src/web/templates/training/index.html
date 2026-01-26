@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}モデル学習{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><i class="bi bi-cpu"></i> モデル学習</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Configuration Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> 学習設定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="trainingForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="modelType" class="form-label">モデル種別 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="modelType" name="model_type" required>
+                                    <option value="random_forest">RandomForest</option>
+                                    <option value="xgboost" selected>XGBoost</option>
+                                    <option value="neural_network">NeuralNetwork (PyTorch)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="taskType" class="form-label">タスク種別 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="taskType" name="task_type" required>
+                                    <option value="regression" selected>回帰（着順予測）</option>
+                                    <option value="classification">分類（勝敗予測）</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Neural Network Specific Options -->
+                        <div id="nnOptions" style="display: none;">
+                            <hr>
+                            <h6 class="text-muted mb-3"><i class="bi bi-sliders"></i> ニューラルネットワーク設定</h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="batchSize" class="form-label">バッチサイズ</label>
+                                    <input type="number" class="form-control" id="batchSize" name="batch_size" value="64" min="1" max="1024">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="nEpochs" class="form-label">エポック数</label>
+                                    <input type="number" class="form-control" id="nEpochs" name="n_epochs" value="100" min="1" max="1000">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="learningRate" class="form-label">学習率</label>
+                                    <input type="number" class="form-control" id="learningRate" name="learning_rate" value="0.001" min="0.0001" max="1" step="0.0001">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="saveModel" name="save_model" checked>
+                                <label class="form-check-label" for="saveModel">
+                                    学習完了後にモデルを保存
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="startTrainingBtn">
+                                <i class="bi bi-play-circle"></i> 学習開始
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Progress Card (hidden initially) -->
+            <div class="card mb-4" id="progressCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> 学習中</h5>
+                    <button class="btn btn-outline-danger btn-sm" id="cancelBtn">
+                        <i class="bi bi-x-circle"></i> キャンセル
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span id="progressStatus">準備中...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 id="progressBar"
+                                 role="progressbar"
+                                 style="width: 0%"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row text-center" id="progressStats">
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statSamples">0</div>
+                                <small class="text-muted">サンプル数</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statFeatures">0</div>
+                                <small class="text-muted">特徴量数</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="h5 mb-0" id="statEpoch">-</div>
+                                <small class="text-muted">エポック</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loss display for Neural Network -->
+                    <div class="row text-center mt-3" id="lossStats" style="display: none;">
+                        <div class="col-6">
+                            <div class="border rounded p-2">
+                                <div class="h6 mb-0" id="statTrainLoss">-</div>
+                                <small class="text-muted">Train Loss</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-2">
+                                <div class="h6 mb-0" id="statValLoss">-</div>
+                                <small class="text-muted">Val Loss</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 small" id="currentOperation">
+                        <i class="bi bi-arrow-right"></i> <span id="currentOpText">初期化中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Card (hidden initially) -->
+            <div class="card mb-4" id="resultCard" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0" id="resultTitle">
+                        <i class="bi bi-check-circle text-success"></i> 学習完了
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="resultStats">
+                        <div class="col-md-6">
+                            <h6>データ情報</h6>
+                            <ul class="list-unstyled small">
+                                <li>学習データ: <strong id="resultTrainSamples">0</strong> 件</li>
+                                <li>検証データ: <strong id="resultValSamples">0</strong> 件</li>
+                                <li>テストデータ: <strong id="resultTestSamples">0</strong> 件</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>モデル情報</h6>
+                            <ul class="list-unstyled small">
+                                <li>モデル: <strong id="resultModelType">-</strong></li>
+                                <li>タスク: <strong id="resultTaskType">-</strong></li>
+                                <li>学習時間: <strong id="resultDuration">-</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6>テスト評価指標</h6>
+                    <div class="row" id="metricsRow">
+                        <!-- Dynamically filled -->
+                    </div>
+                    <hr>
+                    <h6>特徴量重要度（Top 10）</h6>
+                    <div id="featureImportanceContainer">
+                        <canvas id="featureImportanceChart" height="200"></canvas>
+                    </div>
+                    <hr>
+                    <p class="mb-0 small text-muted">
+                        保存先: <strong id="resultModelPath">-</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Error Card (hidden initially) -->
+            <div class="card mb-4 border-danger" id="errorCard" style="display: none;">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> エラー</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0" id="errorMessage">不明なエラーが発生しました</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> 使い方</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="small">
+                        <li>モデル種別を選択</li>
+                        <li>タスク種別を選択（回帰または分類）</li>
+                        <li>NNの場合はパラメータを調整</li>
+                        <li>「学習開始」をクリック</li>
+                        <li>プログレスバーで進行状況を確認</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Model Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-robot"></i> モデル説明</h5>
+                </div>
+                <div class="card-body small">
+                    <p class="mb-2"><strong>RandomForest:</strong></p>
+                    <p class="mb-2 text-muted">決定木のアンサンブル。高速で解釈しやすい。</p>
+                    <p class="mb-2"><strong>XGBoost:</strong></p>
+                    <p class="mb-2 text-muted">勾配ブースティング。高精度で人気。</p>
+                    <p class="mb-2"><strong>NeuralNetwork:</strong></p>
+                    <p class="mb-0 text-muted">PyTorch実装のNN。複雑なパターン学習に強い。</p>
+                </div>
+            </div>
+
+            <!-- Recent Tasks -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> 最近の学習</h5>
+                </div>
+                <div class="card-body" id="recentTasks">
+                    {% if recent_tasks %}
+                        <ul class="list-unstyled small mb-0">
+                        {% for task in recent_tasks %}
+                            <li class="mb-2 pb-2 border-bottom">
+                                <div class="d-flex justify-content-between">
+                                    <span>
+                                        {% if task.status == 'completed' %}
+                                            <i class="bi bi-check-circle text-success"></i>
+                                        {% elif task.status == 'failed' %}
+                                            <i class="bi bi-x-circle text-danger"></i>
+                                        {% elif task.status == 'cancelled' %}
+                                            <i class="bi bi-slash-circle text-warning"></i>
+                                        {% else %}
+                                            <i class="bi bi-hourglass-split text-primary"></i>
+                                        {% endif %}
+                                        {{ task.params.model_type }} / {{ task.params.task_type }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ task.started_at[:16] }}</small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="small text-muted mb-0">学習履歴はありません</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Saved Models -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-archive"></i> 保存済みモデル</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    {% if saved_models %}
+                        <ul class="list-unstyled small mb-0">
+                        {% for model in saved_models[:10] %}
+                            <li class="mb-2 pb-2 border-bottom">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-truncate" style="max-width: 200px;">
+                                        <i class="bi bi-file-earmark-code"></i>
+                                        {{ model.model_type }}_{{ model.task_type }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ model.filename }}</small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="small text-muted mb-0">保存済みモデルはありません</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/training.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const trainingManager = new TrainingManager();
+
+    // Check for running task on page load
+    {% if running_task %}
+    trainingManager.resumeTask('{{ running_task.task_id }}');
+    {% endif %}
+});
+</script>
+{% endblock %}

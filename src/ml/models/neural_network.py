@@ -206,6 +206,8 @@ class NeuralNetworkRaceModel(BaseRaceModel):
         X_val: Optional[pd.DataFrame] = None,
         y_val: Optional[pd.Series] = None,
         verbose: bool = True,
+        progress_callback: Optional[Any] = None,
+        cancel_check: Optional[Any] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -217,6 +219,8 @@ class NeuralNetworkRaceModel(BaseRaceModel):
             X_val: 検証特徴量 (optional)
             y_val: 検証ラベル (optional)
             verbose: 進捗を表示するか
+            progress_callback: 進捗を報告するコールバック関数
+            cancel_check: キャンセル確認用コールバック関数
             **kwargs: 追加パラメータ
 
         Returns:
@@ -274,6 +278,11 @@ class NeuralNetworkRaceModel(BaseRaceModel):
         training_history = {'train_loss': [], 'val_loss': []}
 
         for epoch in range(self.n_epochs):
+            # キャンセルチェック
+            if cancel_check and cancel_check():
+                logger.info(f"Training cancelled at epoch {epoch}")
+                break
+
             # 学習フェーズ
             self.model.train()
             train_loss = 0.0
@@ -294,6 +303,7 @@ class NeuralNetworkRaceModel(BaseRaceModel):
             training_history['train_loss'].append(train_loss)
 
             # 検証フェーズ
+            val_loss = None
             if val_loader is not None:
                 self.model.eval()
                 val_loss = 0.0
@@ -328,10 +338,30 @@ class NeuralNetworkRaceModel(BaseRaceModel):
 
                 if patience_counter >= self.early_stopping_patience:
                     logger.info(f"Early stopping at epoch {epoch+1}")
+                    # 進捗コールバック（early stopping）
+                    if progress_callback:
+                        progress_callback({
+                            'event': 'epoch_complete',
+                            'epoch': epoch + 1,
+                            'total_epochs': self.n_epochs,
+                            'train_loss': train_loss,
+                            'val_loss': val_loss,
+                            'early_stopped': True
+                        })
                     break
             else:
                 if verbose and (epoch + 1) % 10 == 0:
                     logger.info(f"Epoch {epoch+1}/{self.n_epochs} - Train Loss: {train_loss:.4f}")
+
+            # 進捗コールバック
+            if progress_callback:
+                progress_callback({
+                    'event': 'epoch_complete',
+                    'epoch': epoch + 1,
+                    'total_epochs': self.n_epochs,
+                    'train_loss': train_loss,
+                    'val_loss': val_loss
+                })
 
         # ベストモデルを復元
         if best_model_state is not None:

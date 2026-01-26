@@ -111,6 +111,8 @@ class RandomForestRaceModel(BaseRaceModel):
         y_train: pd.Series,
         X_val: Optional[pd.DataFrame] = None,
         y_val: Optional[pd.Series] = None,
+        progress_callback: Optional[Any] = None,
+        cancel_check: Optional[Any] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -121,6 +123,8 @@ class RandomForestRaceModel(BaseRaceModel):
             y_train: Training labels
             X_val: Validation features (optional)
             y_val: Validation labels (optional)
+            progress_callback: Progress callback function (optional)
+            cancel_check: Cancel check function (optional)
             **kwargs: Additional training parameters
 
         Returns:
@@ -128,13 +132,32 @@ class RandomForestRaceModel(BaseRaceModel):
         """
         logger.info(f"Training {self.model_name} on {len(X_train)} samples")
 
+        # キャンセルチェック
+        if cancel_check and cancel_check():
+            return {}
+
         # Store feature columns
         self.feature_columns = X_train.columns.tolist()
+
+        # 進捗コールバック（学習開始）
+        if progress_callback:
+            progress_callback({
+                'event': 'training_start',
+                'model_type': 'random_forest'
+            })
 
         # Train model
         train_start = datetime.utcnow()
         self.model.fit(X_train, y_train)
         train_time = (datetime.utcnow() - train_start).total_seconds()
+
+        # 進捗コールバック（学習完了）
+        if progress_callback:
+            progress_callback({
+                'event': 'training_complete',
+                'model_type': 'random_forest',
+                'training_time_seconds': train_time
+            })
 
         self.is_trained = True
 

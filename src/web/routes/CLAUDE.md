@@ -11,6 +11,7 @@
 | #399 | " | 🔵 | Entities routes provide list and detail pages with statistics calculation | ~298 |
 | #398 | " | 🔵 | Web routes organized in modular blueprint structure | ~280 |
 | #394 | 11:45 PM | 🔵 | Simulation routes demonstrate async task execution with database persistence | ~368 |
+| #393 | " | 🔵 | Predictions routes provide race prediction display and accuracy statistics | ~128 |
 | #390 | " | 🔵 | API routes provide RESTful endpoints with rate limiting, caching, and pagination | ~287 |
 | #384 | 11:44 PM | 🔵 | Web application uses route-based architecture with API endpoints | ~214 |
 </claude-mem-context>
