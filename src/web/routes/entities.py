@@ -44,7 +44,7 @@ def horse_detail(horse_id):
     results = db.session.query(RaceResult, RaceEntry, Race).join(
         RaceEntry, RaceResult.race_entry_id == RaceEntry.id
     ).join(
-        Race, RaceResult.race_id == Race.id
+        Race, RaceEntry.race_id == Race.id
     ).filter(
         RaceEntry.horse_id == horse_id
     ).order_by(Race.race_date.desc()).limit(20).all()
