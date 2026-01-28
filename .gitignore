@@ -315,6 +315,10 @@ docker-compose.override.yml
 # Claude memory database
 .claude-mem/
 
+# Git worktrees (isolated development workspaces)
+.worktrees/
+worktrees/
+
 # ============================================================================
 # Other
 # ============================================================================
