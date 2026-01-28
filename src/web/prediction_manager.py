@@ -444,7 +444,11 @@ class PredictionTaskManager:
                 # 予測を生成
                 if model.task == 'regression':
                     predictions = model.predict(X_filled)
-                    X_filled['predicted_position'] = predictions
+                    # 予測値（連続値）を順位に変換
+                    # バグ修正: int()変換ではなくrank()を使用して重複を防ぐ
+                    X_filled['predicted_position'] = pd.Series(predictions).rank(
+                        ascending=True, method='first'
+                    ).astype(int)
 
                     max_position = X_filled['predicted_position'].max()
                     X_filled['win_probability'] = 1 - (X_filled['predicted_position'] - 1) / max_position
