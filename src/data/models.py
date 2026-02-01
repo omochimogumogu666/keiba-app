@@ -302,3 +302,57 @@ class SimulationBet(db.Model):
 
     def __repr__(self):
         return f'<SimulationBet run={self.simulation_run_id} race={self.race_id} {self.bet_type}>'
+
+
+class PredictionAccuracy(db.Model):
+    """
+    予想精度の集計データ
+
+    日別・週別・月別、モデル別、競馬場別に集計された予測精度を保存。
+    """
+    __tablename__ = 'prediction_accuracy'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # 集計軸
+    aggregation_type = db.Column(db.String(20), nullable=False)  # 'daily', 'weekly', 'monthly'
+    aggregation_date = db.Column(db.Date, nullable=False, index=True)
+    model_name = db.Column(db.String(50), nullable=False, index=True)
+    track_id = db.Column(db.Integer, db.ForeignKey('tracks.id'))
+    race_class = db.Column(db.String(50))
+
+    # 基本統計
+    total_races = db.Column(db.Integer, default=0)
+    total_predictions = db.Column(db.Integer, default=0)
+
+    # 的中率（1着予想の正解率）
+    win_predictions = db.Column(db.Integer, default=0)
+    win_hits = db.Column(db.Integer, default=0)
+    win_accuracy = db.Column(db.Float)
+
+    # 複勝圏内率（1-3着の的中率）
+    top3_predictions = db.Column(db.Integer, default=0)
+    top3_hits = db.Column(db.Integer, default=0)
+    top3_accuracy = db.Column(db.Float)
+
+    # ROI（回収率）
+    total_bet_amount = db.Column(db.Float, default=0.0)
+    total_return_amount = db.Column(db.Float, default=0.0)
+    roi = db.Column(db.Float)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    track = db.relationship('Track', backref='accuracy_stats')
+
+    # Unique constraint
+    __table_args__ = (
+        db.UniqueConstraint(
+            'aggregation_type', 'aggregation_date', 'model_name', 'track_id', 'race_class',
+            name='uq_accuracy_aggregation'
+        ),
+    )
+
+    def __repr__(self):
+        return f'<PredictionAccuracy {self.aggregation_type} {self.aggregation_date} {self.model_name}>'
