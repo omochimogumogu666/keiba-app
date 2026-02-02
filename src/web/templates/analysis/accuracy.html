@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}予想精度分析{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.metric-card {
+    text-align: center;
+    padding: 20px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    margin-bottom: 20px;
+}
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 10px 0;
+}
+.metric-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+.positive {
+    color: #28a745;
+}
+.negative {
+    color: #dc3545;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">予想精度分析</h1>
+
+    <!-- 期間選択フォーム -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="period-form" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start-date" class="form-label">開始日</label>
+                    <input type="date" class="form-control" id="start-date" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="end-date" class="form-label">終了日</label>
+                    <input type="date" class="form-control" id="end-date" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="model-select" class="form-label">モデル</label>
+                    <select class="form-select" id="model-select">
+                        <option value="">全モデル</option>
+                        <option value="xgboost">XGBoost</option>
+                        <option value="random_forest">Random Forest</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="aggregation-select" class="form-label">集計単位</label>
+                    <select class="form-select" id="aggregation-select">
+                        <option value="daily" selected>日別</option>
+                        <option value="weekly">週別</option>
+                        <option value="monthly">月別</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">分析実行</button>
+                    <button type="button" class="btn btn-secondary" id="preset-30days">過去30日</button>
+                    <button type="button" class="btn btn-secondary" id="preset-90days">過去90日</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row" id="summary-cards">
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-label">的中率</div>
+                <div class="metric-value" id="win-accuracy">--</div>
+                <small class="text-muted">1着予想の正解率</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-label">複勝圏内率</div>
+                <div class="metric-value" id="top3-accuracy">--</div>
+                <small class="text-muted">上位3頭が3着以内</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <div class="metric-label">回収率 (ROI)</div>
+                <div class="metric-value" id="roi">--</div>
+                <small class="text-muted">投資回収率</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 時系列チャート -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">精度推移</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="accuracy-chart" height="100"></canvas>
+        </div>
+    </div>
+
+    <!-- モデル比較テーブル -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">モデル比較</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>モデル</th>
+                            <th>的中率</th>
+                            <th>複勝圏内率</th>
+                            <th>ROI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="model-comparison-table">
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">データを読み込み中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let accuracyChart = null;
+
+// デフォルト期間設定（過去30日）
+function setDefaultPeriod() {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    document.getElementById('end-date').valueAsDate = today;
+    document.getElementById('start-date').valueAsDate = thirtyDaysAgo;
+}
+
+// プリセットボタン
+document.getElementById('preset-30days').addEventListener('click', () => {
+    const today = new Date();
+    const daysAgo = new Date(today);
+    daysAgo.setDate(today.getDate() - 30);
+
+    document.getElementById('end-date').valueAsDate = today;
+    document.getElementById('start-date').valueAsDate = daysAgo;
+    document.getElementById('period-form').dispatchEvent(new Event('submit'));
+});
+
+document.getElementById('preset-90days').addEventListener('click', () => {
+    const today = new Date();
+    const daysAgo = new Date(today);
+    daysAgo.setDate(today.getDate() - 90);
+
+    document.getElementById('end-date').valueAsDate = today;
+    document.getElementById('start-date').valueAsDate = daysAgo;
+    document.getElementById('period-form').dispatchEvent(new Event('submit'));
+});
+
+// フォーム送信
+document.getElementById('period-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const modelName = document.getElementById('model-select').value;
+    const aggregation = document.getElementById('aggregation-select').value;
+
+    if (!startDate || !endDate) {
+        alert('開始日と終了日を選択してください');
+        return;
+    }
+
+    // URLパラメータ構築
+    const params = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate,
+        aggregation: aggregation
+    });
+
+    if (modelName) {
+        params.append('model_name', modelName);
+    }
+
+    // データ取得
+    await Promise.all([
+        loadSummary(params),
+        loadTimeseries(params),
+        loadModelComparison(params)
+    ]);
+});
+
+// サマリー読み込み
+async function loadSummary(params) {
+    try {
+        const response = await fetch(`/analysis/api/accuracy/summary?${params}`);
+        const data = await response.json();
+
+        if (data.error) {
+            console.error('Error loading summary:', data.error);
+            return;
+        }
+
+        const overall = data.overall;
+
+        // 的中率
+        document.getElementById('win-accuracy').textContent = overall.win_accuracy.toFixed(1) + '%';
+        document.getElementById('win-accuracy').className = 'metric-value';
+
+        // 複勝圏内率
+        document.getElementById('top3-accuracy').textContent = overall.top3_accuracy.toFixed(1) + '%';
+
+        // ROI
+        const roiElem = document.getElementById('roi');
+        roiElem.textContent = overall.roi.toFixed(1) + '%';
+        roiElem.className = 'metric-value ' + (overall.roi >= 0 ? 'positive' : 'negative');
+    } catch (error) {
+        console.error('Failed to load summary:', error);
+    }
+}
+
+// 時系列チャート読み込み
+async function loadTimeseries(params) {
+    try {
+        const response = await fetch(`/analysis/api/accuracy/timeseries?${params}`);
+        const data = await response.json();
+
+        if (data.error) {
+            console.error('Error loading timeseries:', data.error);
+            return;
+        }
+
+        // 既存チャートを破棄
+        if (accuracyChart) {
+            accuracyChart.destroy();
+        }
+
+        // 新しいチャートを作成
+        const ctx = document.getElementById('accuracy-chart').getContext('2d');
+        accuracyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: data.datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Failed to load timeseries:', error);
+    }
+}
+
+// モデル比較読み込み
+async function loadModelComparison(params) {
+    try {
+        const response = await fetch(`/analysis/api/accuracy/models?${params}`);
+        const data = await response.json();
+
+        if (data.error) {
+            console.error('Error loading model comparison:', data.error);
+            return;
+        }
+
+        const tbody = document.getElementById('model-comparison-table');
+        tbody.innerHTML = '';
+
+        if (data.models.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">データがありません</td></tr>';
+            return;
+        }
+
+        data.models.forEach(model => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><strong>${model.model_name}</strong></td>
+                <td>${model.win_accuracy.toFixed(1)}%</td>
+                <td>${model.top3_accuracy.toFixed(1)}%</td>
+                <td class="${model.roi >= 0 ? 'positive' : 'negative'}">${model.roi.toFixed(1)}%</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Failed to load model comparison:', error);
+    }
+}
+
+// 初期化
+setDefaultPeriod();
+document.getElementById('period-form').dispatchEvent(new Event('submit'));
+</script>
+{% endblock %}
